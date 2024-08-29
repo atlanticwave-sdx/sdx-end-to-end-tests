@@ -10,9 +10,9 @@ import requests
 
 from tests.helpers import NetworkTest
 
-SDX_CONTROLLER = 'http://sdx-controller:8080/SDX-Controller/1.0.0'
+SDX_CONTROLLER = 'http://sdx-controller:8080/SDX-Controller'
 
-class TestE2EConnection:
+class TestE2EL2VPN:
     net = None
 
     @classmethod
@@ -25,166 +25,140 @@ class TestE2EConnection:
     def teardown_class(cls):
         cls.net.stop()
 
-    def test_010_list_connections_empty(self):
-        """Test if list connections return empty."""
-        api_url = SDX_CONTROLLER + '/connections'
+    def test_010_list_l2vpn_empty(self):
+        """Test if list all L2VPNs return empty."""
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         response = requests.get(api_url)
         assert response.status_code == 200, response.text
         assert response.json() == {}
 
-    def test_020_create_connection_successfully(self):
-        """Test creating a connection successfully."""
-        api_url = SDX_CONTROLLER + '/connection'
+    def test_020_create_l2vpn_successfully(self):
+        """Test creating a L2VPN successfully."""
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         payload = {
-            "id": "1",
-            #"id": uuid.uuid4(),
-            "name": "Test connection request 1",
-            "start_time": "2000-01-23T04:56:07.000Z",
-            "end_time": "2000-01-23T04:56:07.000Z",
-            "bandwidth_required": 10,
-            "latency_required": 300,
-            "egress_port": {
-                "id": "urn:sdx:port:tenet.ac.za:Tenet03:50",
-                "name": "Tenet03:50",
-                "node": "urn:sdx:port:tenet.ac.za:Tenet03",
-                "status": "up"
-            },
-            "ingress_port": {
-                "id": "urn:sdx:port:ampath.net:Ampath3:50",
-                "name": "Ampath3:50",
-                "node": "urn:sdx:port:ampath.net:Ampath3",
-                "status": "up"
-            }
+            "name": "Test L2VPN request 1",
+            "endpoints": [
+                {
+                    "port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50",
+                    "vlan": "300",
+                },
+                {
+                    "port_id": "urn:sdx:port:ampath.net:Ampath3:50",
+                    "vlan": "300",
+                },
+            ],
         }
         response = requests.post(api_url, json=payload)
         assert response.status_code == 200, response.text
         response_json = response.json()
         assert response_json.get("status") == "OK", response_json
-        assert response_json.get("connection_id") == "1", response_json
+        service_id = response_json.get("service_id")
+        assert service_id != None, response_json
 
-        api_url = SDX_CONTROLLER + '/connections'
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         response = requests.get(api_url)
         assert response.status_code == 200, response.text
         response_json = response.json()
         assert len(response_json) == 1, response_json
-        assert "1" in response_json, response_json
+        assert service_id in response_json, response_json
 
         # give enough time to SDX-Controller to propagate change to OXPs
         time.sleep(10)
 
-        # make sure OXPs have the new connection
+        # make sure OXPs have the new EVCs
         ## -> amlight
         response = requests.get("http://amlight:8181/api/kytos/mef_eline/v2/evc/")
-        assert len(response.json()) == 1, response.json()
+        evcs = response.json()
+        assert len(evcs) == 1, response.text
+        found = 0
+        for evc in evcs.values():
+            if evc.get("uni_a", {}).get("tag", {}).get("value") == 300:
+                found += 1
+        assert found == 1, evcs
         ## -> sax
         response = requests.get("http://sax:8181/api/kytos/mef_eline/v2/evc/")
         assert len(response.json()) == 1, response.json()
         ## -> tenet
         response = requests.get("http://tenet:8181/api/kytos/mef_eline/v2/evc/")
-        assert len(response.json()) == 1, response.json()
+        evcs = response.json()
+        assert len(evcs) == 1, response.text
+        found = 0
+        for evc in evcs.values():
+            if evc.get("uni_a", {}).get("tag", {}).get("value") == 300:
+                found += 1
+        assert found == 1, evcs
 
-    def test_030_create_connection_with_vlan(self):
-        """Test creating a connection successfully."""
-        api_url = SDX_CONTROLLER + '/connection'
+    def test_030_create_l2vpn_with_any_vlan(self):
+        """Test creating a L2VPN successfully."""
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         payload = {
-            "id": "2",
-            #"id": uuid.uuid4(),
-            "name": "Test connection request 2",
-            "start_time": "2000-01-23T04:56:07.000Z",
-            "end_time": "2000-01-23T04:56:07.000Z",
-            "bandwidth_required": 10,
-            "latency_required": 300,
-            "ingress_port": {
-                "id": "urn:sdx:port:ampath.net:Ampath3:50",
-                "name": "Ampath3:50",
-                "node": "urn:sdx:port:ampath.net:Ampath3",
-                "status": "up",
-                "vlan_range": 77
-            },
-            "egress_port": {
-                "id": "urn:sdx:port:tenet.ac.za:Tenet03:50",
-                "name": "Tenet03:50",
-                "node": "urn:sdx:port:tenet.ac.za:Tenet03",
-                "status": "up",
-                "vlan_range": 66
-            },
+            "name": "Test L2VPN request 2",
+            "endpoints": [
+                {
+                    "port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50",
+                    "vlan": "any",
+                },
+                {
+                    "port_id": "urn:sdx:port:ampath.net:Ampath3:50",
+                    "vlan": "any",
+                },
+            ],
         }
         response = requests.post(api_url, json=payload)
         assert response.status_code == 200, response.text
         response_json = response.json()
         assert response_json.get("status") == "OK", response_json
-        assert response_json.get("connection_id") == "2", response_json
+        service_id = response_json.get("service_id")
+        assert service_id != None, response_json
 
-        api_url = SDX_CONTROLLER + '/connections'
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         response = requests.get(api_url)
         assert response.status_code == 200, response.text
         response_json = response.json()
         assert len(response_json) == 2, response_json
-        assert "2" in response_json, response_json
+        assert service_id in response_json, response_json
 
         # give enough time to SDX-Controller to propagate change to OXPs
         time.sleep(10)
 
-        # make sure OXPs have the new connection
+        # make sure OXPs have the new EVCs
         ## -> amlight
         response = requests.get("http://amlight:8181/api/kytos/mef_eline/v2/evc/")
-        evcs = response.json()
-        assert len(evcs) == 2, evcs
-        found = 0
-        for evc in evcs.values():
-            if evc.get("uni_a", {}).get("tag", {}).get("value") == 77:
-                found += 1
-            if evc.get("uni_z", {}).get("tag", {}).get("value") == 77:
-                found += 1
-        assert found == 1, evcs
+        assert len(response.json()) == 2, response.text
         ## -> sax
         response = requests.get("http://sax:8181/api/kytos/mef_eline/v2/evc/")
-        assert len(response.json()) == 2, response.json()
+        assert len(response.json()) == 2, response.text
         ## -> tenet
         response = requests.get("http://tenet:8181/api/kytos/mef_eline/v2/evc/")
-        evcs = response.json()
-        assert len(evcs) == 2, evcs
-        found = 0
-        for evc in evcs.values():
-            if evc.get("uni_a", {}).get("tag", {}).get("value") == 66:
-                found += 1
-            if evc.get("uni_z", {}).get("tag", {}).get("value") == 66:
-                found += 1
-        assert found == 1, evcs
+        assert len(response.json()) == 2, response.text
 
-    @pytest.mark.xfail
-    def test_030_delete_connection_successfully(self):
-        """Test deleting a connection successfully."""
-        api_url = SDX_CONTROLLER + '/connection/1'
-        api_url_connections = SDX_CONTROLLER + '/connections'
-
-        # make sure the connection exists
+    def test_030_delete_l2vpn_successfully(self):
+        """Test deleting all two L2VPNs successfully."""
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         response = requests.get(api_url)
-        assert response.status_code == 200, response.text
-        response_json = response.json()
-        assert response_json.get("id") == "1", response_json
+        data = response.json()
+        assert len(data) == 2, str(data)
 
-        # Delete the connection
-        response = requests.delete(api_url)
-        assert response.status_code == 200, response.text
+        # Delete all L2VPN
+        for key in data:
+            response = requests.delete(f"{api_url}/{key}")
+            assert response.status_code == 200, response.text
 
-        # give time to SDX Controller to propagate connection removal to OXPs
+        # give enough time to SDX-Controller to propagate change to OXPs
         time.sleep(10)
 
-        # Check if the connection was deleted from SDX-Controller
+        # make sure the L2VPNs were deleted from SDX-Controller
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         response = requests.get(api_url)
-        assert response.status_code == 404, response.text
-        response = requests.get(api_url_connections)
-        assert response.status_code == 200, response.text
-        assert len(response.json()) == 1
-
-        # make sure OXPs had their connection deleted
+        data = response.json()
+        assert len(data) == 2, str(data)
+        # make sure OXPs also had their EVC deleted
         ## -> amlight
         response = requests.get("http://amlight:8181/api/kytos/mef_eline/v2/evc/")
-        assert len(response.json()) == 1, response.json()
+        assert len(response.json()) == 0, response.text
         ## -> sax
         response = requests.get("http://sax:8181/api/kytos/mef_eline/v2/evc/")
-        assert len(response.json()) == 1, response.json()
+        assert len(response.json()) == 0, response.text
         ## -> tenet
         response = requests.get("http://tenet:8181/api/kytos/mef_eline/v2/evc/")
-        assert len(response.json()) == 1, response.json()
+        assert len(response.json()) == 0, response.text

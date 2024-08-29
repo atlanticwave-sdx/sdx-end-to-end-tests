@@ -9,7 +9,7 @@ import requests
 
 from tests.helpers import NetworkTest
 
-SDX_CONTROLLER = 'http://sdx-controller:8080/SDX-Controller/1.0.0'
+SDX_CONTROLLER = 'http://sdx-controller:8080/SDX-Controller'
 
 class TestE2ETopology:
     net = None
@@ -36,20 +36,6 @@ class TestE2ETopology:
         
         # give time so that messages are exchanged between components
         time.sleep(15)
-
-        ## make sure OXPs sent the topology to SDX-LC
-        ## -> amlight
-        #response = requests.get("http://amlight:8181/api/kytos/sdx_topology/v1/version/control")
-        #assert response.ok
-        #assert response.json() != {}, response.json()
-        ## -> sax
-        #response = requests.get("http://sax:8181/api/kytos/sdx_topology/v1/version/control")
-        #assert response.ok
-        #assert response.json() != {}, response.json()
-        ## -> tenet
-        #response = requests.get("http://tenet:8181/api/kytos/sdx_topology/v1/version/control")
-        #assert response.ok
-        #assert response.json() != {}, response.json()
 
         response = requests.get(api_url)
         assert response.status_code == 200, response.text

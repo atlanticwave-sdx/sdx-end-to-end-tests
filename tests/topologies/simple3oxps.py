@@ -4,7 +4,7 @@ from mininet.net import Mininet
 from mininet.node import RemoteController, OVSSwitch
 
 KYTOS_TOPO_API = "http://%s:8181/api/kytos/topology/v3"
-KYTOS_SDX_API = "http://%s:8181/api/kytos/sdx_topology/v1"
+KYTOS_SDX_API = "http://%s:8181/api/kytos/sdx"
 
 def create_topo(amlight_ctrl, sax_ctrl, tenet_ctrl):
     """Create a simple topology with three OXPs."""
@@ -193,9 +193,10 @@ def setup_topo(amlight_ctrl, sax_ctrl, tenet_ctrl):
     # give enough time for Kytos to process topology events
     time.sleep(60)
 
+    # send topology to SDX-LC
     for oxp_ctrl in [amlight_ctrl, sax_ctrl, tenet_ctrl]:
         sdx_api = KYTOS_SDX_API % oxp_ctrl
-        response = requests.get(f"{sdx_api}/version/control")
+        response = requests.post(f"{sdx_api}/topology/2.0.0")
         assert response.ok, response.text
 
     return True
