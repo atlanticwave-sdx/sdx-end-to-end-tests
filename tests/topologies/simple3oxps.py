@@ -1,12 +1,14 @@
+import json
 import time
 import requests
+from pathlib import Path
 from mininet.net import Mininet
 from mininet.node import RemoteController, OVSSwitch
 
 KYTOS_TOPO_API = "http://%s:8181/api/kytos/topology/v3"
 KYTOS_SDX_API = "http://%s:8181/api/kytos/sdx"
 
-def create_topo(amlight_ctrl, sax_ctrl, tenet_ctrl):
+def create_topo(ampath_ctrl, sax_ctrl, tenet_ctrl):
     """Create a simple topology with three OXPs."""
     net = Mininet(topo=None, build=False, controller=RemoteController, switch=OVSSwitch)
 
@@ -48,9 +50,9 @@ def create_topo(amlight_ctrl, sax_ctrl, tenet_ctrl):
 
     # ************************************************ SAX OXP - End ************************************************
 
-    # ******************************************** AmLight OXP - Start **********************************************
-    AmLightController = net.addController('amlight_ctrl', controller=RemoteController, ip=amlight_ctrl, port=6653)
-    AmLightController.start()
+    # ******************************************** Ampath OXP - Start **********************************************
+    AmpathController = net.addController('ampath_ctrl', controller=RemoteController, ip=ampath_ctrl, port=6653)
+    AmpathController.start()
 
     Ampath1 = net.addSwitch('Ampath1', listenPort=6601, dpid='aa00000000000001')
     Ampath2 = net.addSwitch('Ampath2', listenPort=6602, dpid='aa00000000000002')
@@ -68,7 +70,7 @@ def create_topo(amlight_ctrl, sax_ctrl, tenet_ctrl):
     net.addLink(h2, Ampath2, port1=1, port2=50)
     net.addLink(h3, Ampath3, port1=1, port2=50)
 
-    # ********************************************* AmLight OXP - End ************************************************
+    # ********************************************* Ampath OXP - End ************************************************
 
     # ********************************************** Inter-OXP links ***********************************************
 
@@ -78,10 +80,10 @@ def create_topo(amlight_ctrl, sax_ctrl, tenet_ctrl):
     net.addLink(tenet_sw1, sax_sw1, port1=41, port2=41)
     net.addLink(tenet_sw2, sax_sw2, port1=41, port2=41)
 
-    # Connect AmLight switches to AmLight controller
-    Ampath1.start([AmLightController])
-    Ampath2.start([AmLightController])
-    Ampath3.start([AmLightController])
+    # Connect Ampath switches to Ampath controller
+    Ampath1.start([AmpathController])
+    Ampath2.start([AmpathController])
+    Ampath3.start([AmpathController])
 
     sax_sw1.start([SaxController])
     sax_sw2.start([SaxController])
@@ -94,16 +96,16 @@ def create_topo(amlight_ctrl, sax_ctrl, tenet_ctrl):
 
     return net
 
-def setup_topo(amlight_ctrl, sax_ctrl, tenet_ctrl):
+def setup_topo(ampath_ctrl, sax_ctrl, tenet_ctrl):
     """Does all necessary setup for this test"""
-    amlight_topo_api = KYTOS_TOPO_API % amlight_ctrl
+    ampath_topo_api = KYTOS_TOPO_API % ampath_ctrl
     sax_topo_api = KYTOS_TOPO_API % sax_ctrl
     tenet_topo_api = KYTOS_TOPO_API % tenet_ctrl
 
-    response = requests.get(f"{amlight_topo_api}/switches")
+    response = requests.get(f"{ampath_topo_api}/switches")
     assert response.status_code == 200
-    amlight_switches = response.json()["switches"]
-    assert len(amlight_switches) == 3
+    ampath_switches = response.json()["switches"]
+    assert len(ampath_switches) == 3
 
     response = requests.get(f"{sax_topo_api}/switches")
     assert response.status_code == 200
@@ -115,10 +117,10 @@ def setup_topo(amlight_ctrl, sax_ctrl, tenet_ctrl):
     tenet_switches = response.json()["switches"]
     assert len(tenet_switches) == 3
 
-    for sw_id in amlight_switches:
-        response = requests.post(f"{amlight_topo_api}/switches/{sw_id}/enable")
+    for sw_id in ampath_switches:
+        response = requests.post(f"{ampath_topo_api}/switches/{sw_id}/enable")
         assert response.status_code == 201, response.text
-        response = requests.post(f"{amlight_topo_api}/interfaces/switch/{sw_id}/enable")
+        response = requests.post(f"{ampath_topo_api}/interfaces/switch/{sw_id}/enable")
         assert response.status_code == 200, response.text
 
     for sw_id in sax_switches:
@@ -136,12 +138,12 @@ def setup_topo(amlight_ctrl, sax_ctrl, tenet_ctrl):
     # give a few seconds for link discovery (LLDP)
     time.sleep(10)
 
-    response = requests.get(f"{amlight_topo_api}/links")
+    response = requests.get(f"{ampath_topo_api}/links")
     assert response.status_code == 200
-    amlight_links = response.json()["links"]
-    assert len(amlight_links) == 3
-    for link_id in amlight_links:
-        response = requests.post(f"{amlight_topo_api}/links/{link_id}/enable")
+    ampath_links = response.json()["links"]
+    assert len(ampath_links) == 3
+    for link_id in ampath_links:
+        response = requests.post(f"{ampath_topo_api}/links/{link_id}/enable")
         assert response.status_code == 201
 
     response = requests.get(f"{sax_topo_api}/links")
@@ -161,7 +163,7 @@ def setup_topo(amlight_ctrl, sax_ctrl, tenet_ctrl):
         assert response.status_code == 201
 
     metadata = {
-        amlight_topo_api: {
+        ampath_topo_api: {
             "switches/aa:00:00:00:00:00:00:01": {"lat": "25.77", "lng": "-80.19", "address": "Miami", "iso3166_2_lvl4": "US-FL"},
             "switches/aa:00:00:00:00:00:00:02": {"lat": "26.38", "lng": "-80.11", "address": "BocaRaton", "iso3166_2_lvl4": "US-FL"},
             "switches/aa:00:00:00:00:00:00:03": {"lat": "30.27", "lng": "-81.68", "address": "Jacksonville", "iso3166_2_lvl4": "US-FL"},
@@ -194,9 +196,13 @@ def setup_topo(amlight_ctrl, sax_ctrl, tenet_ctrl):
     time.sleep(60)
 
     # send topology to SDX-LC
-    for oxp_ctrl in [amlight_ctrl, sax_ctrl, tenet_ctrl]:
+    for oxp_ctrl in [ampath_ctrl, sax_ctrl, tenet_ctrl]:
         sdx_api = KYTOS_SDX_API % oxp_ctrl
         response = requests.post(f"{sdx_api}/topology/2.0.0")
         assert response.ok, response.text
 
     return True
+
+def get_converted_topologies():
+    topologies = ["simple3oxps_converted_ampath.json", "simple3oxps_converted_sax.json", "simple3oxps_converted_tenet.json"]
+    return [json.loads((Path(__file__).parent / topo).read_text()) for topo in topologies]

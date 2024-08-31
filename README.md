@@ -26,7 +26,7 @@ end-to-end-testing:
       alias: mongo
     - name: rabbitmq:latest
       alias: mq1
-    - name: amlight/kytos-sdx:latest
+    - name: ampath/kytos-sdx:latest
       entrypoint:
         - "/bin/bash"
         - "-x"
@@ -38,13 +38,13 @@ end-to-end-testing:
           while [ ! -f $CI_PROJECT_DIR/hosts ]; do sleep 1; done
           cat $CI_PROJECT_DIR/hosts >> /etc/hosts
           # actual steps to setup the service
-          source $CI_PROJECT_DIR/sdx-end-to-end-tests/env/amlight.env
+          source $CI_PROJECT_DIR/sdx-end-to-end-tests/env/ampath.env
           python3 $CI_PROJECT_DIR/sdx-end-to-end-tests/setup-mongo-auth.py
           rsyslogd
           kytosd --database mongodb
           tail -f /dev/null
-      alias: amlight
-    - name: amlight/kytos-sdx:latest
+      alias: ampath
+    - name: ampath/kytos-sdx:latest
       entrypoint:
         - "/bin/bash"
         - "-x"
@@ -62,7 +62,7 @@ end-to-end-testing:
           kytosd --database mongodb
           tail -f /dev/null
       alias: sax
-    - name: amlight/kytos-sdx:latest
+    - name: ampath/kytos-sdx:latest
       entrypoint:
         - "/bin/bash"
         - "-x"
@@ -92,12 +92,12 @@ end-to-end-testing:
           while [ ! -f $CI_PROJECT_DIR/hosts ]; do sleep 1; done
           cat $CI_PROJECT_DIR/hosts >> /etc/hosts
           # actual steps to setup the service
-          source $CI_PROJECT_DIR/sdx-end-to-end-tests/env/amlight-lc.env
+          source $CI_PROJECT_DIR/sdx-end-to-end-tests/env/ampath-lc.env
           python3 $CI_PROJECT_DIR/sdx-end-to-end-tests/setup-mongo-auth.py
           python3 $CI_PROJECT_DIR/sdx-end-to-end-tests/wait-rabbit.py
           python3 -m uvicorn sdx_lc.app:asgi_app --host 0.0.0.0 --port 8080
       command: [""]
-      alias: amlight-lc
+      alias: ampath-lc
     - name: awsdx/sdx-lc:latest
       entrypoint:
         - "/bin/bash"
