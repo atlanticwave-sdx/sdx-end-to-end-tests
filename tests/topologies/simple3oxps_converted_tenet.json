@@ -1,1 +1,304 @@
-{"name":"Tenet-OXP","id":"urn:sdx:topology:tenet.ac.za","version":10,"timestamp":"2024-08-31T07:30:54Z","model_version":"2.0.0","nodes":[{"name":"Tenet01","id":"urn:sdx:node:tenet.ac.za:Tenet01","location":{"address":"CapeTown","latitude":-33.0,"longitude":18.0,"iso3166_2_lvl4":"ZA-WC","private":[]},"ports":[{"id":"urn:sdx:port:tenet.ac.za:Tenet01:41","name":"Tenet01-eth41","node":"urn:sdx:node:tenet.ac.za:Tenet01","type":"10GE","status":"up","state":"enabled","mtu":1500,"nni":"urn:sdx:port:sax.net:Sax01:41","services":{"l2vpn-ptp":{"vlan_range":[[1,4095]]}},"private":["status"]},{"id":"urn:sdx:port:tenet.ac.za:Tenet01:1","name":"Tenet01-eth1","node":"urn:sdx:node:tenet.ac.za:Tenet01","type":"10GE","status":"up","state":"enabled","mtu":1500,"nni":"","services":{"l2vpn-ptp":{"vlan_range":[[1,4095]]}},"private":["status"]},{"id":"urn:sdx:port:tenet.ac.za:Tenet01:2","name":"Tenet01-eth2","node":"urn:sdx:node:tenet.ac.za:Tenet01","type":"10GE","status":"up","state":"enabled","mtu":1500,"nni":"","services":{"l2vpn-ptp":{"vlan_range":[[1,4095]]}},"private":["status"]},{"id":"urn:sdx:port:tenet.ac.za:Tenet01:50","name":"Tenet01-eth50","node":"urn:sdx:node:tenet.ac.za:Tenet01","type":"10GE","status":"up","state":"enabled","mtu":1500,"nni":"","services":{"l2vpn-ptp":{"vlan_range":[[1,4095]]}},"private":["status"]}],"status":"up","state":"enabled"},{"name":"Tenet02","id":"urn:sdx:node:tenet.ac.za:Tenet02","location":{"address":"Johanesburgo","latitude":-26.0,"longitude":28.0,"iso3166_2_lvl4":"ZA-GP","private":[]},"ports":[{"id":"urn:sdx:port:tenet.ac.za:Tenet02:41","name":"Tenet02-eth41","node":"urn:sdx:node:tenet.ac.za:Tenet02","type":"10GE","status":"up","state":"enabled","mtu":1500,"nni":"urn:sdx:port:sax.net:Sax02:41","services":{"l2vpn-ptp":{"vlan_range":[[1,4095]]}},"private":["status"]},{"id":"urn:sdx:port:tenet.ac.za:Tenet02:1","name":"Tenet02-eth1","node":"urn:sdx:node:tenet.ac.za:Tenet02","type":"10GE","status":"up","state":"enabled","mtu":1500,"nni":"","services":{"l2vpn-ptp":{"vlan_range":[[1,4095]]}},"private":["status"]},{"id":"urn:sdx:port:tenet.ac.za:Tenet02:50","name":"Tenet02-eth50","node":"urn:sdx:node:tenet.ac.za:Tenet02","type":"10GE","status":"up","state":"enabled","mtu":1500,"nni":"","services":{"l2vpn-ptp":{"vlan_range":[[1,4095]]}},"private":["status"]}],"status":"up","state":"enabled"},{"name":"Tenet03","id":"urn:sdx:node:tenet.ac.za:Tenet03","location":{"address":"EastLondon","latitude":-33.0,"longitude":27.0,"iso3166_2_lvl4":"ZA-EC","private":[]},"ports":[{"id":"urn:sdx:port:tenet.ac.za:Tenet03:50","name":"Tenet03-eth50","node":"urn:sdx:node:tenet.ac.za:Tenet03","type":"10GE","status":"up","state":"enabled","mtu":1500,"nni":"","services":{"l2vpn-ptp":{"vlan_range":[[1,4095]]}},"private":["status"]},{"id":"urn:sdx:port:tenet.ac.za:Tenet03:2","name":"Tenet03-eth2","node":"urn:sdx:node:tenet.ac.za:Tenet03","type":"10GE","status":"up","state":"enabled","mtu":1500,"nni":"","services":{"l2vpn-ptp":{"vlan_range":[[1,4095]]}},"private":["status"]}],"status":"up","state":"enabled"}],"links":[{"name":"Tenet01/1_Tenet02/1","id":"urn:sdx:link:tenet.ac.za:Tenet01/1_Tenet02/1","ports":["urn:sdx:port:tenet.ac.za:Tenet01:1","urn:sdx:port:tenet.ac.za:Tenet02:1"],"type":"intra","bandwidth":10,"residual_bandwidth":100,"latency":0,"packet_loss":0,"availability":0,"status":"up","state":"enabled","private":["packet_loss"]},{"name":"Tenet01/2_Tenet03/2","id":"urn:sdx:link:tenet.ac.za:Tenet01/2_Tenet03/2","ports":["urn:sdx:port:tenet.ac.za:Tenet01:2","urn:sdx:port:tenet.ac.za:Tenet03:2"],"type":"intra","bandwidth":10,"residual_bandwidth":100,"latency":0,"packet_loss":0,"availability":0,"status":"up","state":"enabled","private":["packet_loss"]}],"services":["l2vpn-ptp"]}
+{
+  "name": "Tenet-OXP",
+  "id": "urn:sdx:topology:tenet.ac.za",
+  "version": 10,
+  "timestamp": "2024-08-31T07:30:54Z",
+  "model_version": "2.0.0",
+  "nodes": [
+    {
+      "name": "Tenet01",
+      "id": "urn:sdx:node:tenet.ac.za:Tenet01",
+      "location": {
+        "address": "CapeTown",
+        "latitude": -33,
+        "longitude": 18,
+        "iso3166_2_lvl4": "ZA-WC",
+        "private": []
+      },
+      "ports": [
+        {
+          "id": "urn:sdx:port:tenet.ac.za:Tenet01:41",
+          "name": "Tenet01-eth41",
+          "node": "urn:sdx:node:tenet.ac.za:Tenet01",
+          "type": "10GE",
+          "status": "up",
+          "state": "enabled",
+          "mtu": 1500,
+          "nni": "urn:sdx:port:sax.net:Sax01:41",
+          "services": {
+            "l2vpn-ptp": {
+              "vlan_range": [
+                [
+                  1,
+                  4095
+                ]
+              ]
+            }
+          },
+          "private": [
+            "status"
+          ]
+        },
+        {
+          "id": "urn:sdx:port:tenet.ac.za:Tenet01:1",
+          "name": "Tenet01-eth1",
+          "node": "urn:sdx:node:tenet.ac.za:Tenet01",
+          "type": "10GE",
+          "status": "up",
+          "state": "enabled",
+          "mtu": 1500,
+          "nni": "",
+          "services": {
+            "l2vpn-ptp": {
+              "vlan_range": [
+                [
+                  1,
+                  4095
+                ]
+              ]
+            }
+          },
+          "private": [
+            "status"
+          ]
+        },
+        {
+          "id": "urn:sdx:port:tenet.ac.za:Tenet01:2",
+          "name": "Tenet01-eth2",
+          "node": "urn:sdx:node:tenet.ac.za:Tenet01",
+          "type": "10GE",
+          "status": "up",
+          "state": "enabled",
+          "mtu": 1500,
+          "nni": "",
+          "services": {
+            "l2vpn-ptp": {
+              "vlan_range": [
+                [
+                  1,
+                  4095
+                ]
+              ]
+            }
+          },
+          "private": [
+            "status"
+          ]
+        },
+        {
+          "id": "urn:sdx:port:tenet.ac.za:Tenet01:50",
+          "name": "Tenet01-eth50",
+          "node": "urn:sdx:node:tenet.ac.za:Tenet01",
+          "type": "10GE",
+          "status": "up",
+          "state": "enabled",
+          "mtu": 1500,
+          "nni": "",
+          "services": {
+            "l2vpn-ptp": {
+              "vlan_range": [
+                [
+                  1,
+                  4095
+                ]
+              ]
+            }
+          },
+          "private": [
+            "status"
+          ]
+        }
+      ],
+      "status": "up",
+      "state": "enabled"
+    },
+    {
+      "name": "Tenet02",
+      "id": "urn:sdx:node:tenet.ac.za:Tenet02",
+      "location": {
+        "address": "Johanesburgo",
+        "latitude": -26,
+        "longitude": 28,
+        "iso3166_2_lvl4": "ZA-GP",
+        "private": []
+      },
+      "ports": [
+        {
+          "id": "urn:sdx:port:tenet.ac.za:Tenet02:41",
+          "name": "Tenet02-eth41",
+          "node": "urn:sdx:node:tenet.ac.za:Tenet02",
+          "type": "10GE",
+          "status": "up",
+          "state": "enabled",
+          "mtu": 1500,
+          "nni": "urn:sdx:port:sax.net:Sax02:41",
+          "services": {
+            "l2vpn-ptp": {
+              "vlan_range": [
+                [
+                  1,
+                  4095
+                ]
+              ]
+            }
+          },
+          "private": [
+            "status"
+          ]
+        },
+        {
+          "id": "urn:sdx:port:tenet.ac.za:Tenet02:1",
+          "name": "Tenet02-eth1",
+          "node": "urn:sdx:node:tenet.ac.za:Tenet02",
+          "type": "10GE",
+          "status": "up",
+          "state": "enabled",
+          "mtu": 1500,
+          "nni": "",
+          "services": {
+            "l2vpn-ptp": {
+              "vlan_range": [
+                [
+                  1,
+                  4095
+                ]
+              ]
+            }
+          },
+          "private": [
+            "status"
+          ]
+        },
+        {
+          "id": "urn:sdx:port:tenet.ac.za:Tenet02:50",
+          "name": "Tenet02-eth50",
+          "node": "urn:sdx:node:tenet.ac.za:Tenet02",
+          "type": "10GE",
+          "status": "up",
+          "state": "enabled",
+          "mtu": 1500,
+          "nni": "",
+          "services": {
+            "l2vpn-ptp": {
+              "vlan_range": [
+                [
+                  1,
+                  4095
+                ]
+              ]
+            }
+          },
+          "private": [
+            "status"
+          ]
+        }
+      ],
+      "status": "up",
+      "state": "enabled"
+    },
+    {
+      "name": "Tenet03",
+      "id": "urn:sdx:node:tenet.ac.za:Tenet03",
+      "location": {
+        "address": "EastLondon",
+        "latitude": -33,
+        "longitude": 27,
+        "iso3166_2_lvl4": "ZA-EC",
+        "private": []
+      },
+      "ports": [
+        {
+          "id": "urn:sdx:port:tenet.ac.za:Tenet03:50",
+          "name": "Tenet03-eth50",
+          "node": "urn:sdx:node:tenet.ac.za:Tenet03",
+          "type": "10GE",
+          "status": "up",
+          "state": "enabled",
+          "mtu": 1500,
+          "nni": "",
+          "services": {
+            "l2vpn-ptp": {
+              "vlan_range": [
+                [
+                  1,
+                  4095
+                ]
+              ]
+            }
+          },
+          "private": [
+            "status"
+          ]
+        },
+        {
+          "id": "urn:sdx:port:tenet.ac.za:Tenet03:2",
+          "name": "Tenet03-eth2",
+          "node": "urn:sdx:node:tenet.ac.za:Tenet03",
+          "type": "10GE",
+          "status": "up",
+          "state": "enabled",
+          "mtu": 1500,
+          "nni": "",
+          "services": {
+            "l2vpn-ptp": {
+              "vlan_range": [
+                [
+                  1,
+                  4095
+                ]
+              ]
+            }
+          },
+          "private": [
+            "status"
+          ]
+        }
+      ],
+      "status": "up",
+      "state": "enabled"
+    }
+  ],
+  "links": [
+    {
+      "name": "Tenet01/1_Tenet02/1",
+      "id": "urn:sdx:link:tenet.ac.za:Tenet01/1_Tenet02/1",
+      "ports": [
+        "urn:sdx:port:tenet.ac.za:Tenet01:1",
+        "urn:sdx:port:tenet.ac.za:Tenet02:1"
+      ],
+      "type": "intra",
+      "bandwidth": 10,
+      "residual_bandwidth": 100,
+      "latency": 0,
+      "packet_loss": 0,
+      "availability": 0,
+      "status": "up",
+      "state": "enabled",
+      "private": [
+        "packet_loss"
+      ]
+    },
+    {
+      "name": "Tenet01/2_Tenet03/2",
+      "id": "urn:sdx:link:tenet.ac.za:Tenet01/2_Tenet03/2",
+      "ports": [
+        "urn:sdx:port:tenet.ac.za:Tenet01:2",
+        "urn:sdx:port:tenet.ac.za:Tenet03:2"
+      ],
+      "type": "intra",
+      "bandwidth": 10,
+      "residual_bandwidth": 100,
+      "latency": 0,
+      "packet_loss": 0,
+      "availability": 0,
+      "status": "up",
+      "state": "enabled",
+      "private": [
+        "packet_loss"
+      ]
+    }
+  ],
+  "services": [
+    "l2vpn-ptp"
+  ]
+}
