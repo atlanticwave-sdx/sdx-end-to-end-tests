@@ -39,11 +39,11 @@ class TestE2EL2VPN:
             "name": "Test L2VPN request 1",
             "endpoints": [
                 {
-                    "port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50",
+                    "port_id": "urn:sdx:port:ampath.net:Ampath3:50",
                     "vlan": "300",
                 },
                 {
-                    "port_id": "urn:sdx:port:ampath.net:Ampath3:50",
+                    "port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50",
                     "vlan": "300",
                 },
             ],
@@ -84,7 +84,7 @@ class TestE2EL2VPN:
         assert len(evcs) == 1, response.text
         found = 0
         for evc in evcs.values():
-            if evc.get("uni_a", {}).get("tag", {}).get("value") == 300:
+            if evc.get("uni_z", {}).get("tag", {}).get("value") == 300:
                 found += 1
         assert found == 1, evcs
 
@@ -151,7 +151,7 @@ class TestE2EL2VPN:
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         response = requests.get(api_url)
         data = response.json()
-        assert len(data) == 2, str(data)
+        assert len(data) == 0, str(data)
         # make sure OXPs also had their EVC deleted
         ## -> amlight
         response = requests.get("http://amlight:8181/api/kytos/mef_eline/v2/evc/")
