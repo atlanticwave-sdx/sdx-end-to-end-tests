@@ -17,7 +17,7 @@ class TestE2EL2VPN:
 
     @classmethod
     def setup_class(cls):
-        cls.net = NetworkTest(["amlight", "sax", "tenet"])
+        cls.net = NetworkTest(["ampath", "sax", "tenet"])
         cls.net.wait_switches_connect()
         cls.net.run_setup_topo()
 
@@ -66,8 +66,8 @@ class TestE2EL2VPN:
         time.sleep(10)
 
         # make sure OXPs have the new EVCs
-        ## -> amlight
-        response = requests.get("http://amlight:8181/api/kytos/mef_eline/v2/evc/")
+        ## -> ampath
+        response = requests.get("http://ampath:8181/api/kytos/mef_eline/v2/evc/")
         evcs = response.json()
         assert len(evcs) == 1, response.text
         found = 0
@@ -122,8 +122,8 @@ class TestE2EL2VPN:
         time.sleep(10)
 
         # make sure OXPs have the new EVCs
-        ## -> amlight
-        response = requests.get("http://amlight:8181/api/kytos/mef_eline/v2/evc/")
+        ## -> ampath
+        response = requests.get("http://ampath:8181/api/kytos/mef_eline/v2/evc/")
         assert len(response.json()) == 2, response.text
         ## -> sax
         response = requests.get("http://sax:8181/api/kytos/mef_eline/v2/evc/")
@@ -153,8 +153,8 @@ class TestE2EL2VPN:
         data = response.json()
         assert len(data) == 0, str(data)
         # make sure OXPs also had their EVC deleted
-        ## -> amlight
-        response = requests.get("http://amlight:8181/api/kytos/mef_eline/v2/evc/")
+        ## -> ampath
+        response = requests.get("http://ampath:8181/api/kytos/mef_eline/v2/evc/")
         assert len(response.json()) == 0, response.text
         ## -> sax
         response = requests.get("http://sax:8181/api/kytos/mef_eline/v2/evc/")
