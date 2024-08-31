@@ -19,12 +19,14 @@ class NetworkTest:
             module = importlib.import_module(f"tests.topologies.{topo_name}")
             create_topo = getattr(module, "create_topo")
             setup_topo = getattr(module, "setup_topo")
+            get_converted_topologies = getattr(module, "get_converted_topologies")
         except (ImportError, AttributeError):
             raise ValueError(
                 f"Invalid topology: {topo_name}. Check test/topologies/"
             )
         self.net = create_topo(*self.controllers_ip)
         self.setup_topo = setup_topo
+        self.get_converted_topologies = get_converted_topologies
 
     def run_setup_topo(self):
         try:
