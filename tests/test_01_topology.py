@@ -2,6 +2,7 @@ import json
 import re
 import time
 from datetime import datetime, timedelta
+from pytest_unordered import unordered
 
 import pytest
 from random import randrange
@@ -51,9 +52,11 @@ class TestE2ETopology:
         for idx, oxp in enumerate(["ampath", "sax", "tenet"]):
             response = requests.get(f"http://{oxp}:8181/api/kytos/sdx/topology/2.0.0")
             topo = response.json()
+            for node in topo["nodes"]:
+                node["ports"] = unordered(node["ports"])
             for attr in ["name", "id", "model_version", "nodes", "links", "services"]:
                 assert attr in topo, str(topo)
-                assert topo[attr] == expected_topos[idx][attr], f"fount {attr}={topo[attr]}"
+                assert unordered(topo[attr]) == expected_topos[idx][attr], f"fount {attr}={topo[attr]}"
 
     @pytest.mark.xfail
     def test_020_set_intra_link_down_check_topology(self):
