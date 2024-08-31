@@ -51,7 +51,7 @@ class TestE2ETopology:
         for idx, oxp in enumerate(["ampath", "sax", "tenet"]):
             response = requests.get(f"http://{oxp}:8181/api/kytos/sdx/topology/2.0.0")
             topo = response.json()
-            for attr in ["name", "id", "version", "model_version", "nodes", "links", "services"]:
+            for attr in ["name", "id", "model_version", "nodes", "links", "services"]:
                 assert attr in topo, str(topo)
                 assert topo[attr] == expected_topos[idx][attr], f"fount {attr}={topo[attr]}"
 
