@@ -47,7 +47,7 @@
           "status": "up",
           "state": "enabled",
           "mtu": 1500,
-          "nni": "",
+          "nni": "urn:sdx:port:tenet.ac.za:Tenet02:1",
           "services": {
             "l2vpn-ptp": {
               "vlan_range": [
@@ -70,7 +70,7 @@
           "status": "up",
           "state": "enabled",
           "mtu": 1500,
-          "nni": "",
+          "nni": "urn:sdx:port:tenet.ac.za:Tenet03:2",
           "services": {
             "l2vpn-ptp": {
               "vlan_range": [
@@ -154,7 +154,7 @@
           "status": "up",
           "state": "enabled",
           "mtu": 1500,
-          "nni": "",
+          "nni": "urn:sdx:port:tenet.ac.za:Tenet01:1",
           "services": {
             "l2vpn-ptp": {
               "vlan_range": [
@@ -238,7 +238,7 @@
           "status": "up",
           "state": "enabled",
           "mtu": 1500,
-          "nni": "",
+          "nni": "urn:sdx:port:tenet.ac.za:Tenet01:2",
           "services": {
             "l2vpn-ptp": {
               "vlan_range": [

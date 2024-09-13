@@ -24,7 +24,7 @@
           "status": "up",
           "state": "enabled",
           "mtu": 1500,
-          "nni": "",
+          "nni": "urn:sdx:port:ampath.net:Ampath2:1",
           "services": {
             "l2vpn-ptp": {
               "vlan_range": [
@@ -93,7 +93,7 @@
           "status": "up",
           "state": "enabled",
           "mtu": 1500,
-          "nni": "",
+          "nni": "urn:sdx:port:ampath.net:Ampath3:2",
           "services": {
             "l2vpn-ptp": {
               "vlan_range": [
@@ -131,7 +131,7 @@
           "status": "up",
           "state": "enabled",
           "mtu": 1500,
-          "nni": "",
+          "nni": "urn:sdx:port:ampath.net:Ampath1:1",
           "services": {
             "l2vpn-ptp": {
               "vlan_range": [
@@ -200,7 +200,7 @@
           "status": "up",
           "state": "enabled",
           "mtu": 1500,
-          "nni": "",
+          "nni": "urn:sdx:port:ampath.net:Ampath3:3",
           "services": {
             "l2vpn-ptp": {
               "vlan_range": [
@@ -261,7 +261,7 @@
           "status": "up",
           "state": "enabled",
           "mtu": 1500,
-          "nni": "",
+          "nni": "urn:sdx:port:ampath.net:Ampath1:2",
           "services": {
             "l2vpn-ptp": {
               "vlan_range": [
@@ -284,7 +284,7 @@
           "status": "up",
           "state": "enabled",
           "mtu": 1500,
-          "nni": "",
+          "nni": "urn:sdx:port:ampath.net:Ampath2:3",
           "services": {
             "l2vpn-ptp": {
               "vlan_range": [
