@@ -58,7 +58,7 @@ class TestE2ETopology:
                 assert attr in topo, str(topo)
                 assert unordered(topo[attr]) == expected_topos[idx][attr], f"fount {attr}={topo[attr]}"
 
-    @pytest.mark.xfail
+    # @pytest.mark.xfail
     def test_020_set_intra_link_down_check_topology(self):
         api_url = SDX_CONTROLLER + '/topology'
         response = requests.get(api_url)
