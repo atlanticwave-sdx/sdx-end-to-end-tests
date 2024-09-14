@@ -47,7 +47,7 @@
           "status": "up",
           "state": "enabled",
           "mtu": 1500,
-          "nni": "urn:sdx:port:sax.net:Sax02:1",
+          "nni": "urn:sdx:link:sax.net:Sax01/1_Sax02/1",
           "services": {
             "l2vpn-ptp": {
               "vlan_range": [
@@ -154,7 +154,7 @@
           "status": "up",
           "state": "enabled",
           "mtu": 1500,
-          "nni": "urn:sdx:port:sax.net:Sax01:1",
+          "nni": "urn:sdx:link:sax.net:Sax01/1_Sax02/1",
           "services": {
             "l2vpn-ptp": {
               "vlan_range": [
