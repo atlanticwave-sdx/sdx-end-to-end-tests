@@ -80,6 +80,7 @@ class TestE2ETopology:
         response = requests.get(api_url)
         data = response.json()
         ports = {port["id"]: port for node in data["nodes"] for port in node["ports"]}
+        links = {link["id"]: link for link in data["links"]}
         assert ports[port1]["status"] == "down", str(ports[port1])
         assert ports[port2]["status"] == "down", str(ports[port2])
         assert links[link1]["status"] == "down", str(links[link1])
