@@ -384,3 +384,37 @@ class TestE2ETopology:
         assert 'h1-eth1' not in ports_net, str(ports_net)
         assert 'Ampath1-eth50' not in ports_net, str(ports_net)
         assert len(ports) == len_ports_controller-2, str(ports) ### FAIL
+
+    @pytest.mark.xfail(reason="Version has to change.")
+    def test_060_location_change(self):
+        """Test Location changes""" 
+        api_url = SDX_CONTROLLER + '/topology'
+        response = requests.get(api_url)
+        data = response.json()
+        version = float(data["version"])
+
+        ampath_ctrl = 'ampath'
+        ampath_topo_api = KYTOS_TOPO_API % ampath_ctrl
+        response = requests.get(f"{ampath_topo_api}/switches")
+        assert response.status_code == 200
+        tenet_switches = response.json()["switches"]
+        key = next(iter(tenet_switches))
+        item_to_change_id = tenet_switches[key]['id']
+
+        new_metadata = {"lat": "1", "lng": "2", "address": "New", "iso3166_2_lvl4": "New"}
+        response = requests.post(f"{ampath_topo_api}/switches/{item_to_change_id}/metadata", json=new_metadata)
+        assert 200 <= response.status_code < 300, response.text
+
+        # give time so that messages are propagated
+        time.sleep(15)
+    
+        response = requests.get(f"{ampath_topo_api}/switches")
+        assert response.status_code == 200
+        tenet_switches = response.json()["switches"]
+        metadata = tenet_switches[item_to_change_id]['metadata']
+        assert metadata == new_metadata, str(metadata)
+
+        api_url = SDX_CONTROLLER + '/topology'
+        response = requests.get(api_url)
+        data = response.json()
+        assert float(data["version"]) < version, str(data['version']) # NO CHANGE - has to change 
