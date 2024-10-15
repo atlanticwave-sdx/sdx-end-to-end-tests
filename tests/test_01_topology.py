@@ -12,6 +12,7 @@ from tests.helpers import NetworkTest
 
 SDX_CONTROLLER = 'http://sdx-controller:8080/SDX-Controller'
 KYTOS_TOPO_API = "http://%s:8181/api/kytos/topology/v3"
+KYTOS_SDX_API  = "http://%s:8181/api/kytos/sdx"
 
 class TestE2ETopology:
     net = None
@@ -59,7 +60,6 @@ class TestE2ETopology:
                 assert attr in topo, str(topo)
                 assert unordered(topo[attr]) == expected_topos[idx][attr], f"fount {attr}={topo[attr]}"
 
-    # @pytest.mark.xfail
     def test_020_set_intra_link_down_check_topology(self):
         api_url = SDX_CONTROLLER + '/topology'
         response = requests.get(api_url)
@@ -86,7 +86,7 @@ class TestE2ETopology:
         assert ports[port2]["status"] == "down", str(ports[port2])
         assert links[link1]["status"] == "down", str(links[link1])
 
-    def test_020_set_inter_link_down_check_topology(self):
+    def test_025_set_inter_link_down_check_topology(self):
         """ Set one inter-domain links down and see how SDX controller exports the topology"""
         api_url = SDX_CONTROLLER + '/topology'
         response = requests.get(api_url)
@@ -113,31 +113,29 @@ class TestE2ETopology:
         assert ports[port2]["status"] == "down", str(ports[port2])
         assert links[link1]["status"] == "down", str(links[link1])
 
-    @pytest.mark.skip(reason="Test is currently failing and needs to be addressed.")
+    @pytest.mark.skip(reason="New link needs to be deleted.")
     def test_030_add_intra_link_check_topology(self):
-        """ Add an intra-domain Link and see how SDX controller exports the topology
-            This is failing: requests.get(api_url) obtains the same topology as before addLink
-        """
+        """ Add an intra-domain Link and see how SDX controller exports the topology"""
         api_url = SDX_CONTROLLER + '/topology'
         response = requests.get(api_url)
         data = response.json()
         links = {link["id"]: link for link in data["links"]}
         len_links_controller = len(links)
-        len_links_net = len(self.net.net.links)
 
-        self.net.net.addLink('Tenet02', 'Tenet03', port1=3, port2=3)
+        new_link = self.net.net.addLink('Tenet02', 'Tenet03', port1=3, port2=3)
+        new_link.intf1.node.attach(new_link.intf1.name)
+        new_link.intf2.node.attach(new_link.intf2.name)
 
         # give time so that messages are propagated
         time.sleep(15)
-        
+    
         # Enable interfaces and links
-        tenet_ctrl = 'tenet'
-        tenet_topo_api = KYTOS_TOPO_API % tenet_ctrl
+        tenet_topo_api = KYTOS_TOPO_API % 'tenet'
         response = requests.get(f"{tenet_topo_api}/switches")
         assert response.status_code == 200
-        tenet_switches = response.json()["switches"]
+        switches = response.json()["switches"]
 
-        for sw_id in tenet_switches:
+        for sw_id in switches:
             response = requests.post(f"{tenet_topo_api}/switches/{sw_id}/enable")
             assert response.status_code == 201, response.text
             response = requests.post(f"{tenet_topo_api}/interfaces/switch/{sw_id}/enable")
@@ -147,19 +145,18 @@ class TestE2ETopology:
 
         response = requests.get(f"{tenet_topo_api}/links")
         assert response.status_code == 200
-        tenet_links = response.json()["links"]
-        for link_id in tenet_links:
+        links = response.json()["links"]
+        for link_id in links:
             response = requests.post(f"{tenet_topo_api}/links/{link_id}/enable")
             assert response.status_code == 201
-        
+    
         # give time so that messages are propagated
-        time.sleep(15)
+        time.sleep(30)
 
         response = requests.get(api_url)
         data = response.json()
         links = {link["id"]: link for link in data["links"]}
-        assert len(self.net.net.links) == len_links_net+1, str(self.net.net.links)
-        assert len(links) == len_links_controller+1, str(data['links']) ### FAIL
+        assert len(links) == len_links_controller+1, str(data['links'])
     
     @pytest.mark.skip(reason="Test is currently failing and needs to be addressed.")
     def test_030_add_inter_link_check_topology(self):
@@ -186,31 +183,36 @@ class TestE2ETopology:
     
     @pytest.mark.skip(reason="Test is currently failing and needs to be addressed.")
     def test_035_del_intra_link_check_topology(self):
-        """ Remove an intra-domain Link and see how SDX controller exports the topology
-            This is failing: requests.get(api_url) obtains the same topology as before delLinkBetween
-        """
+        """ Remove an intra-domain Link and see how SDX controller exports the topology"""
         api_url = SDX_CONTROLLER + '/topology'
         response = requests.get(api_url)
         data = response.json()
-        links = {link["id"]: link for link in data["links"]}
-        len_links_net = len(self.net.net.links)
-        len_links_controller = len(links)
+        len_links_controller = len(data['links'])
 
-        link = "urn:sdx:link:ampath.net:Ampath1/1_Ampath2/1"
-        assert link in links, str(data["links"])
+        idx = len(self.net.net.links)-1
+        link = None
+        while idx >= 0:
+            # Intra-domain
+            if self.net.net.links[idx].intf1.node.name[:-2] == \
+                self.net.net.links[idx].intf2.node.name[:-2]:
+                link = self.net.net.links[idx]
+                if 'Tenet02' in [link.intf1.node.name, link.intf2.node.name] and \
+                    'Tenet03' in [link.intf1.node.name, link.intf2.node.name]:
+                    break
+            idx -= 1
+        assert link != None, str(self.net.net.links)
 
-        node1 = self.net.net.get('Ampath1')
-        node2 = self.net.net.get('Ampath2')
-        self.net.net.delLinkBetween(node1, node2)
+        # Manually reset the network interfaces to ensure disconnection
+        link.intf1.node.cmd('ifconfig', link.intf1.name, 'down')
+        link.intf2.node.cmd('ifconfig', link.intf2.name, 'down')
+        self.net.net.delLink(link)
 
         # give time so that messages are propagated
         time.sleep(15)
 
         response = requests.get(api_url)
         data = response.json()
-        links = {link["id"]: link for link in data["links"]}
-        assert len(self.net.net.links) == len_links_net-1, str(self.net.net.links)
-        assert len(links) == len_links_controller-1, str(data['links']) ### FAIL
+        assert len(data['links']) == len_links_controller-1, str(data['links']) ## FAIL
 
     @pytest.mark.skip(reason="Test is currently failing and needs to be addressed.")
     def test_035_del_inter_link_check_topology(self):
@@ -385,7 +387,6 @@ class TestE2ETopology:
         assert 'Ampath1-eth50' not in ports_net, str(ports_net)
         assert len(ports) == len_ports_controller-2, str(ports) ### FAIL
 
-    @pytest.mark.xfail(reason="Version has to change.")
     def test_060_location_change(self):
         """Test Location changes""" 
         api_url = SDX_CONTROLLER + '/topology'
@@ -397,24 +398,27 @@ class TestE2ETopology:
         ampath_topo_api = KYTOS_TOPO_API % ampath_ctrl
         response = requests.get(f"{ampath_topo_api}/switches")
         assert response.status_code == 200
-        tenet_switches = response.json()["switches"]
-        key = next(iter(tenet_switches))
-        item_to_change_id = tenet_switches[key]['id']
+        ampath_switches = response.json()["switches"]
+        key = next(iter(ampath_switches))
+        item_to_change_id = ampath_switches[key]['id']
 
-        new_metadata = {"lat": "1", "lng": "2", "address": "New", "iso3166_2_lvl4": "New"}
+        new_metadata = {"lat": "1", "lng": "2", "address": "Miami", "iso3166_2_lvl4": "US-FL"}
         response = requests.post(f"{ampath_topo_api}/switches/{item_to_change_id}/metadata", json=new_metadata)
         assert 200 <= response.status_code < 300, response.text
 
-        # give time so that messages are propagated
-        time.sleep(15)
+        # Force the Kytos SDX controller controller to send the topology to the SDX-LC
+        sdx_api = KYTOS_SDX_API % ampath_ctrl
+        response = requests.post(f"{sdx_api}/topology/2.0.0")
+        assert response.status_code == 200
     
         response = requests.get(f"{ampath_topo_api}/switches")
         assert response.status_code == 200
-        tenet_switches = response.json()["switches"]
-        metadata = tenet_switches[item_to_change_id]['metadata']
+        ampath_switches = response.json()["switches"]
+        metadata = ampath_switches[item_to_change_id]['metadata']
         assert metadata == new_metadata, str(metadata)
 
         api_url = SDX_CONTROLLER + '/topology'
         response = requests.get(api_url)
         data = response.json()
-        assert float(data["version"]) < version, str(data['version']) # NO CHANGE - has to change 
+        assert version < float(data["version"]), str(data['version'])
+
