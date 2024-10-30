@@ -170,7 +170,6 @@ services:
       - |
         # actual steps to setup the service
         source /sdx-end-to-end-tests/env/sdx-controller.env
-        cp -rv /sdx-end-to-end-tests/patches/sdx_pce/* /opt/venv/lib/python3.9/site-packages/sdx_pce/
         python3 /sdx-end-to-end-tests/setup-mongo-auth.py
         python3 /sdx-end-to-end-tests/wait-rabbit.py
         python3 -m uvicorn sdx_controller.app:asgi_app --host 0.0.0.0 --port 8080
