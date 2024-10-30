@@ -184,8 +184,15 @@ class TestE2ETopology:
             response = requests.post(f"{tenet_topo_api}/links/{link_id}/enable")
             assert response.status_code == 201
     
+        # give time for Kytos to process topology update
+        time.sleep(5)
+
+        sdx_api = KYTOS_SDX_API % 'tenet'
+        response = requests.post(f"{sdx_api}/topology/2.0.0")
+        assert response.status_code == 200
+
         # give time so that messages are propagated
-        time.sleep(30)
+        time.sleep(15)
 
         response = requests.get(api_url)
         data = response.json()
