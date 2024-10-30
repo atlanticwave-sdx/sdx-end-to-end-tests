@@ -49,7 +49,7 @@ class TestE2EL2VPN:
             ],
         }
         response = requests.post(api_url, json=payload)
-        assert response.status_code == 200, response.text
+        assert response.status_code == 201, response.text
         response_json = response.json()
         assert response_json.get("status") == "OK", response_json
         service_id = response_json.get("service_id")
@@ -105,7 +105,7 @@ class TestE2EL2VPN:
             ],
         }
         response = requests.post(api_url, json=payload)
-        assert response.status_code == 200, response.text
+        assert response.status_code == 201, response.text
         response_json = response.json()
         assert response_json.get("status") == "OK", response_json
         service_id = response_json.get("service_id")
