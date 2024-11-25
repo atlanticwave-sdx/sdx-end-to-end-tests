@@ -267,3 +267,73 @@ class TestE2EL2VPN:
         ## -> tenet
         response = requests.get("http://tenet:8181/api/kytos/mef_eline/v2/evc/")
         assert len(response.json()) == 0, response.text
+
+    def _test_connectivity(self, node1, node2):
+        """Test the connectivity between two nodes"""
+        node1, node2 = self.net.net.get(node1, node2)
+        result = node1.cmd('ping -c 4 ' + node2.IP())  
+        assert ', 0% packet loss,' in result
+
+    def test_060_create_and_delete_l2vpn(self):
+        """
+        Create 10 L2VPN between differnet endpoints of the topology, 
+        randomly remove 5 of them, and test the connectivity between then
+        """
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        response = requests.get(api_url)
+        assert response.status_code == 200, response.text
+        response_json = response.json()
+        assert len(response_json) == 0, response_json
+
+        # Create 10 L2VPNs
+        services_id = set()
+        endpoints = [("urn:sdx:port:tenet.ac.za:Tenet03:50","urn:sdx:port:ampath.net:Ampath1:50"),
+                     ("urn:sdx:port:tenet.ac.za:Tenet02:50","urn:sdx:port:ampath.net:Ampath3:50"),
+                     ("urn:sdx:port:tenet.ac.za:Tenet01:50","urn:sdx:port:ampath.net:Ampath2:50"),
+                     ("urn:sdx:port:sax.net:Sax01:50","urn:sdx:port:tenet.ac.za:Tenet01:50"),
+                     ("urn:sdx:port:sax.net:Sax02:50","urn:sdx:port:tenet.ac.za:Tenet02:50"),
+                     ("urn:sdx:port:ampath.net:Ampath1:50","urn:sdx:port:tenet.ac.za:Tenet01:50"),
+                     ("urn:sdx:port:ampath.net:Ampath2:50","urn:sdx:port:tenet.ac.za:Tenet02:50"), 
+                     ("urn:sdx:port:ampath.net:Ampath3:50","urn:sdx:port:tenet.ac.za:Tenet03:50"),
+                     ("urn:sdx:port:ampath.net:Ampath1:50","urn:sdx:port:sax.net:Sax01:50"),
+                     ("urn:sdx:port:ampath.net:Ampath2:50","urn:sdx:port:sax.net:Sax02:50")]
+
+        for i, endpoint in enumerate(endpoints):
+            payload = {
+            "name": "Test L2VPN request",
+            "endpoints": [
+                {
+                    "port_id": endpoint[0],
+                    "vlan": f"{(i+1)*100}",
+                },
+                {
+                    "port_id": endpoint[1],
+                    "vlan": f"{(i+1)*100}",
+                },
+            ],
+            }
+            response = requests.post(api_url, json=payload)
+            assert response.status_code == 201, response.text
+            response_json = response.json()
+            assert response_json.get("status") == "OK", response_json
+            services_id.add(response_json.get("service_id"))
+
+        response = requests.get(api_url)
+        assert response.status_code == 200, response.text
+        response_json = response.json()
+        assert len(response_json) == 10, str(response_json)
+
+        self._test_connectivity('Ampath3', 'Tenet03')
+
+        # Remove 5 L2VPNs
+        for i in range(5):
+            key = services_id.pop()
+            response = requests.delete(f"{api_url}/{key}")
+            assert response.status_code == 200, response.text
+        
+        response = requests.get(api_url)
+        assert response.status_code == 200, response.text
+        response_json = response.json()
+        assert len(response_json) == 5, str(response_json)
+
+        self._test_connectivity('Ampath3', 'Tenet03')
