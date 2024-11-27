@@ -268,24 +268,32 @@ class TestE2EL2VPN:
         response = requests.get("http://tenet:8181/api/kytos/mef_eline/v2/evc/")
         assert len(response.json()) == 0, response.text
 
-    def _test_connectivity(self, node1, node2):
-        """Test the connectivity between two nodes"""
-        node1, node2 = self.net.net.get(node1, node2)
-        result = node1.cmd('ping -c 4 ' + node2.IP())  
-        assert ', 0% packet loss,' in result
+    def pingAllSwitches(self):
+        loss = len(self.net.net.switches)*len(self.net.net.switches)
+        for s1 in self.net.net.switches:
+            for s2 in self.net.net.switches:
+                result = s1.cmd('ping -c 4 ' + s2.IP())  
+                if(', 0% packet loss,' in result): loss -= 1
+        return loss
 
-    def test_060_create_and_delete_l2vpn(self):
-        """
-        Create 10 L2VPN between differnet endpoints of the topology, 
-        randomly remove 5 of them, and test the connectivity between then
-        """
+    def remove_l2vpn(cls):
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         response = requests.get(api_url)
         assert response.status_code == 200, response.text
         response_json = response.json()
-        assert len(response_json) == 0, response_json
+        services_id = set(keys for keys in response_json.keys())
+        while(len(services_id) > 0):
+            key = services_id.pop()
+            response = requests.delete(f"{api_url}/{key}")
+            assert response.status_code == 200, response.text
 
-        # Create 10 L2VPNs
+    def test_060_create_and_delete_l2vpn(self):
+        """
+        - Create 10 L2VPN between differnet endpoints of the topology, 
+        - randomly remove 5 of them,
+        - test the connectivity between then
+        """
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         services_id = set()
         endpoints = [("urn:sdx:port:tenet.ac.za:Tenet03:50","urn:sdx:port:ampath.net:Ampath1:50"),
                      ("urn:sdx:port:tenet.ac.za:Tenet02:50","urn:sdx:port:ampath.net:Ampath3:50"),
@@ -323,9 +331,9 @@ class TestE2EL2VPN:
         response_json = response.json()
         assert len(response_json) == 10, str(response_json)
 
-        self._test_connectivity('Ampath3', 'Tenet03')
+        result = self.pingAllSwitches()
+        assert result == 0, str(result)
 
-        # Remove 5 L2VPNs
         for i in range(5):
             key = services_id.pop()
             response = requests.delete(f"{api_url}/{key}")
@@ -336,4 +344,16 @@ class TestE2EL2VPN:
         response_json = response.json()
         assert len(response_json) == 5, str(response_json)
 
-        self._test_connectivity('Ampath3', 'Tenet03')
+        result = self.pingAllSwitches()
+        assert result == 0, str(result)
+
+        self.net.net.configLinkStatus('Tenet01', 'Tenet02', 'down')
+        self.net.net.configLinkStatus('Sax01', 'Sax02', 'down')
+        self.net.net.configLinkStatus('Ampath1', 'Ampath2', 'down')
+        self.net.net.configLinkStatus('Ampath1', 'Ampath3', 'down')
+        time.sleep(15)
+
+        result = self.pingAllSwitches()
+        # assert result != 0, f"ping failed with {result}"
+        
+        self.remove_l2vpn()
