@@ -267,93 +267,77 @@ class TestE2EL2VPN:
         ## -> tenet
         response = requests.get("http://tenet:8181/api/kytos/mef_eline/v2/evc/")
         assert len(response.json()) == 0, response.text
-
-    def pingAllSwitches(self):
-        loss = len(self.net.net.switches)*len(self.net.net.switches)
-        for s1 in self.net.net.switches:
-            for s2 in self.net.net.switches:
-                result = s1.cmd('ping -c 4 ' + s2.IP())  
-                if(', 0% packet loss,' in result): loss -= 1
-        return loss
-
-    def remove_l2vpn(cls):
-        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
-        response = requests.get(api_url)
-        assert response.status_code == 200, response.text
-        response_json = response.json()
-        services_id = set(keys for keys in response_json.keys())
-        while(len(services_id) > 0):
-            key = services_id.pop()
-            response = requests.delete(f"{api_url}/{key}")
-            assert response.status_code == 200, response.text
-
-    def test_060_create_and_delete_l2vpn(self):
+    
+    def test_060_link_convergency_with_l2vpn_with_alternative_paths(self):
         """
-        - Create 10 L2VPN between differnet endpoints of the topology, 
-        - randomly remove 5 of them,
-        - test the connectivity between then
+        Test a simple link convergency with L2VPNs that have alternative paths:
+        - Create 3 L2VPN, 
+        - test connectivity, 
+        - set one link to down, 
+        - wait a few seconds for convergency, 
+        - test connectivity again
         """
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
-        services_id = set()
-        endpoints = [("urn:sdx:port:tenet.ac.za:Tenet03:50","urn:sdx:port:ampath.net:Ampath1:50"),
-                     ("urn:sdx:port:tenet.ac.za:Tenet02:50","urn:sdx:port:ampath.net:Ampath3:50"),
-                     ("urn:sdx:port:tenet.ac.za:Tenet01:50","urn:sdx:port:ampath.net:Ampath2:50"),
-                     ("urn:sdx:port:sax.net:Sax01:50","urn:sdx:port:tenet.ac.za:Tenet01:50"),
-                     ("urn:sdx:port:sax.net:Sax02:50","urn:sdx:port:tenet.ac.za:Tenet02:50"),
-                     ("urn:sdx:port:ampath.net:Ampath1:50","urn:sdx:port:tenet.ac.za:Tenet01:50"),
-                     ("urn:sdx:port:ampath.net:Ampath2:50","urn:sdx:port:tenet.ac.za:Tenet02:50"), 
-                     ("urn:sdx:port:ampath.net:Ampath3:50","urn:sdx:port:tenet.ac.za:Tenet03:50"),
-                     ("urn:sdx:port:ampath.net:Ampath1:50","urn:sdx:port:sax.net:Sax01:50"),
-                     ("urn:sdx:port:ampath.net:Ampath2:50","urn:sdx:port:sax.net:Sax02:50")]
+        payload = {"name": "Text", "endpoints":
+                   [{"port_id": "urn:sdx:port:ampath.net:Ampath1:50", "vlan": "100",},
+                    {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50", "vlan": "100",},],}
+        response = requests.post(api_url, json=payload)
+        assert response.status_code == 201, response.text
+        h1, h8 = self.net.net.get('h1', 'h8')
+        h1.cmd('ip link add link %s name vlan100 type vlan id 100' % (h1.intfNames()[0]))
+        h1.cmd('ip link set up vlan100')
+        h1.cmd('ip addr add 10.1.1.1/24 dev vlan100')
+        h8.cmd('ip link add link %s name vlan100 type vlan id 100' % (h8.intfNames()[0]))
+        h8.cmd('ip link set up vlan100')
+        h8.cmd('ip addr add 10.1.1.8/24 dev vlan100')
 
-        for i, endpoint in enumerate(endpoints):
-            payload = {
-            "name": "Test L2VPN request",
-            "endpoints": [
-                {
-                    "port_id": endpoint[0],
-                    "vlan": f"{(i+1)*100}",
-                },
-                {
-                    "port_id": endpoint[1],
-                    "vlan": f"{(i+1)*100}",
-                },
-            ],
-            }
-            response = requests.post(api_url, json=payload)
-            assert response.status_code == 201, response.text
-            response_json = response.json()
-            assert response_json.get("status") == "OK", response_json
-            services_id.add(response_json.get("service_id"))
+        payload = {"name": "Text", "endpoints":
+                   [{"port_id": "urn:sdx:port:ampath.net:Ampath1:50", "vlan": "101",},
+                    {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50", "vlan": "101",},],}
+        response = requests.post(api_url, json=payload)
+        assert response.status_code == 201, response.text
+        h1.cmd('ip link add link %s name vlan101 type vlan id 101' % (h1.intfNames()[0]))
+        h1.cmd('ip link set up vlan101')
+        h1.cmd('ip addr add 10.1.1.1/24 dev vlan101')
+        h8.cmd('ip link add link %s name vlan100 type vlan id 101' % (h8.intfNames()[0]))
+        h8.cmd('ip link set up vlan101')
+        h8.cmd('ip addr add 10.1.1.8/24 dev vlan101')
 
-        response = requests.get(api_url)
-        assert response.status_code == 200, response.text
-        response_json = response.json()
-        assert len(response_json) == 10, str(response_json)
+        payload = {"name": "Text", "endpoints":
+                   [{"port_id": "urn:sdx:port:ampath.net:Ampath1:50", "vlan": "102",},
+                    {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50", "vlan": "102",},],}
+        response = requests.post(api_url, json=payload)
+        assert response.status_code == 201, response.text
+        h1.cmd('ip link add link %s name vlan102 type vlan id 102' % (h1.intfNames()[0]))
+        h1.cmd('ip link set up vlan102')
+        h1.cmd('ip addr add 10.1.1.1/24 dev vlan102')
+        h8.cmd('ip link add link %s name vlan102 type vlan id 102' % (h8.intfNames()[0]))
+        h8.cmd('ip link set up vlan102')
+        h8.cmd('ip addr add 10.1.1.8/24 dev vlan102')
 
-        result = self.pingAllSwitches()
-        assert result == 0, str(result)
+        result = h1.cmd('ping -c4 10.1.1.8')
+        assert ', 0% packet loss,' in result
 
-        for i in range(5):
-            key = services_id.pop()
-            response = requests.delete(f"{api_url}/{key}")
-            assert response.status_code == 200, response.text
-        
-        response = requests.get(api_url)
-        assert response.status_code == 200, response.text
-        response_json = response.json()
-        assert len(response_json) == 5, str(response_json)
+        # link down
+        h1.cmd('ip link del vlan102')
 
-        result = self.pingAllSwitches()
-        assert result == 0, str(result)
+        # wait a few seconds for convergency
+        time.sleep(30)
+        result = h1.cmd('ping -c4 10.1.1.8')
+        assert ', 0% packet loss,' in result
 
-        self.net.net.configLinkStatus('Tenet01', 'Tenet02', 'down')
-        self.net.net.configLinkStatus('Sax01', 'Sax02', 'down')
-        self.net.net.configLinkStatus('Ampath1', 'Ampath2', 'down')
-        self.net.net.configLinkStatus('Ampath1', 'Ampath3', 'down')
-        time.sleep(15)
+        # link down
+        h1.cmd('ip link del vlan101')
 
-        result = self.pingAllSwitches()
-        # assert result != 0, f"ping failed with {result}"
-        
-        self.remove_l2vpn()
+        # wait a few seconds for convergency
+        time.sleep(30)
+        result = h1.cmd('ping -c4 10.1.1.8')
+        assert ', 0% packet loss,' in result
+
+        # link down
+        h1.cmd('ip link del vlan100')
+
+        # wait a few seconds -> there are no links left
+        time.sleep(30)
+        result = h1.cmd('ping -c4 10.1.1.8')
+        assert ', 100% packet loss,' in result
