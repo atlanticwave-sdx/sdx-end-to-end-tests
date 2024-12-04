@@ -341,3 +341,41 @@ class TestE2EL2VPN:
         time.sleep(30)
         result = h1.cmd('ping -c4 10.1.1.8')
         assert ', 100% packet loss,' in result
+
+    def test_070_create_l2vpn_invalid_body(self):
+        """Test the return code 400: Request does not have a valid JSON for creating an L2VPN"""
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        payload = {
+            "name": "Test L2VPN request",
+            "endpoints": [
+                {
+                    "port_id": "urn:sdx:port:ampath.net:Ampath",
+                    "vlan": 1,
+                },
+                {
+                    "port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50",
+                    "vlan": 1,
+                },
+            ],
+        }
+        response = requests.post(api_url, json=payload)
+        assert response.status_code == 400, response.text
+
+    def test_071_create_l2vpn_request_not_compatible(self):
+        """Test the return code 402: Request not compatible for creating an L2VPN"""
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        payload = {
+            "name": "Test L2VPN request",
+            "endpoints": [
+                {
+                    "port_id": "urn:sdx:port:ampath.net:Ampath",
+                    "vlan": "any",
+                },
+                {
+                    "port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50",
+                    "vlan": "any",
+                },
+            ],
+        }
+        response = requests.post(api_url, json=payload)
+        assert response.status_code == 402, response.text
