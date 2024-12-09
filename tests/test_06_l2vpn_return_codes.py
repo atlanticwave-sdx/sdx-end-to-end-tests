@@ -227,17 +227,3 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 409, response.text
 
-    def test_050_code409(self):
-        """
-        Test the return code 410: Can't fulfill the strict QoS requirements
-        """
-
-    def test_060_code409(self):
-        """
-        Test the return code 411: Scheduling not possible
-        """
-
-    def test_070_code409(self):
-        """
-        Test the return code 422: Attribute not supported by the SDX-LC/OXPO
-        """
