@@ -27,7 +27,8 @@ class TestE2EReturnCodes:
     
     def test_010_code201(self):
         """
-        Test the return code 201: L2VPN Service Created
+        Test the return code for creating a SDX L2VPN
+        201: L2VPN Service Created
         P2P with VLAN translation
         """
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
@@ -42,7 +43,8 @@ class TestE2EReturnCodes:
     
     def test_011_code201(self):
         """
-        Test the return code 201: L2VPN Service Created
+        Test the return code for creating a SDX L2VPN
+        201: L2VPN Service Created
         P2P with option "any"
         """
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
@@ -58,7 +60,8 @@ class TestE2EReturnCodes:
     @pytest.mark.xfail(reason="return status 400: PCE error: Can't find a valid vlan breakdown solution")
     def test_012_code201(self):
         """
-        Test the return code 201: L2VPN Service Created
+        Test the return code for creating a SDX L2VPN
+        201: L2VPN Service Created
         P2P with VLAN range
         """
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
@@ -74,7 +77,8 @@ class TestE2EReturnCodes:
     @pytest.mark.xfail(reason="return status 400: PCE error: Can't find a valid vlan breakdown solution")
     def test_013_code201(self):
         """
-        Test the return code 201: L2VPN Service Created
+        Test the return code for creating a SDX L2VPN
+        201: L2VPN Service Created
         P2P with "untagged" and a VLAN ID
         """
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
@@ -89,7 +93,8 @@ class TestE2EReturnCodes:
 
     def test_014_code201(self):
         """
-        Test the return code 201: L2VPN Service Created
+        Test the return code for creating a SDX L2VPN
+        201: L2VPN Service Created
         Example with optional attributes
         """
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
@@ -115,7 +120,8 @@ class TestE2EReturnCodes:
 
     def test_020_code400(self):
         """
-        Test the return code 400: Request does not have a valid JSON or body is incomplete/incorrect
+        Test the return code for creating a SDX L2VPN
+        400: Request does not have a valid JSON or body is incomplete/incorrect
         -> Wrong vlan: vlan is not a string
         """
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
@@ -130,7 +136,8 @@ class TestE2EReturnCodes:
 
     def test_021_code400(self):
         """
-        Test the return code 400: Request does not have a valid JSON or body is incomplete/incorrect
+        Test the return code for creating a SDX L2VPN
+        400: Request does not have a valid JSON or body is incomplete/incorrect
         -> Wrong vlan: vlan is out of range 1-4095
         """
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
@@ -145,7 +152,8 @@ class TestE2EReturnCodes:
 
     def test_022_code400(self):
         """
-        Test the return code 400: Request does not have a valid JSON or body is incomplete/incorrect
+        Test the return code for creating a SDX L2VPN
+        400: Request does not have a valid JSON or body is incomplete/incorrect
         -> Wrong vlan: since one endpoint has the "all" option, all endpoints must have the same value
         """
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
@@ -161,7 +169,8 @@ class TestE2EReturnCodes:
     @pytest.mark.xfail(reason="return status 200: Connection published -- same behavior as vlan = 'any'")
     def test_023_code400(self):
         """
-        Test the return code 400: Request does not have a valid JSON or body is incomplete/incorrect
+        Test the return code for creating a SDX L2VPN
+        400: Request does not have a valid JSON or body is incomplete/incorrect
         -> Body incomplete: vlan attribute is missing on an endpoint
         """
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
@@ -177,7 +186,8 @@ class TestE2EReturnCodes:
     @pytest.mark.xfail(reason="return status 402: Could not generate a traffic matrix")
     def test_024_code400(self):
         """
-        Test the return code 400: Request does not have a valid JSON or body is incomplete/incorrect
+        Test the return code for creating a SDX L2VPN
+        400: Request does not have a valid JSON or body is incomplete/incorrect
         -> Body incorrect: port_id
         """
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
@@ -193,7 +203,8 @@ class TestE2EReturnCodes:
     @pytest.mark.xfail(reason="return status 500: Internal Server Error")
     def test_030_code402(self):
         """
-        Test the return code 402: Request not compatible (For instance, when a L2VPN P2MP is requested but only L2VPN P2P is supported)
+        Test the return code for creating a SDX L2VPN
+        402: Request not compatible (For instance, when a L2VPN P2MP is requested but only L2VPN P2P is supported)
         P2MP
         """
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
@@ -210,7 +221,8 @@ class TestE2EReturnCodes:
     @pytest.mark.xfail(reason="return status 400: PCE error: Can't find a valid vlan breakdown solution")
     def test_040_code409(self):
         """
-        Test the return code 409: L2VPN Service already exists
+        Test the return code for creating a SDX L2VPN
+        409: L2VPN Service already exists
         """
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         payload = {
@@ -227,3 +239,79 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 409, response.text
 
+    def test_050_code410(self):
+        """
+        Test the return code for creating a SDX L2VPN
+        410: Can't fulfill the strict QoS requirements
+        Case: min_bw out of range (value must be in [0-100])
+        """
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        payload = {
+            "name": "VLAN between AMPATH/2000 and TENET/2000",
+            "endpoints": [
+                {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "2000",},
+                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "2000",},
+            ],
+            "qos_metrics": {
+                "min_bw": {"value": 101}}
+            }
+        response = requests.post(api_url, json=payload)
+        assert response.status_code == 410, response.text
+
+    @pytest.mark.xfail(reason="return status 201: Connection published")
+    def test_051_code410(self):
+        """
+        Test the return code for creating a SDX L2VPN
+        410: Can't fulfill the strict QoS requirements
+        Case: max_delay out of range (value must be in [0-1000])
+        """
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        payload = {
+            "name": "VLAN between AMPATH/2010 and TENET/2010",
+            "endpoints": [
+                {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "2010",},
+                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "2010",},
+            ],
+            "qos_metrics": {
+                "max_delay": {"value": 1001}}}
+        response = requests.post(api_url, json=payload)
+        assert response.status_code == 410, response.text
+
+    @pytest.mark.xfail(reason="return status 201: Connection published")
+    def test_052_code410(self):
+        """
+        Test the return code for creating a SDX L2VPN
+        410: Can't fulfill the strict QoS requirements
+        Case: max_number_oxps out of range (value must be in [0-100])
+        """
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        payload = {
+            "name": "VLAN between AMPATH/2020 and TENET/2020",
+            "endpoints": [
+                {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "2020",},
+                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "2020",},
+            ],
+            "qos_metrics": {
+                "max_number_oxps": {"value": 101}}}
+        response = requests.post(api_url, json=payload)
+        assert response.status_code == 410, response.text
+
+    @pytest.mark.xfail(reason="return status 201: Connection published")
+    def test_060_code411(self):
+        """
+        Test the return code for creating a SDX L2VPN
+        411: Scheduling not possible
+        end_time before current date
+        """
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        payload = {
+            "name": "VLAN between AMPATH/2030 and TENET/2030",
+            "endpoints": [
+                {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "2030",},
+                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "2030",},
+            ],
+            "scheduling": {
+                "end_time": "2023-12-30"}
+            }
+        response = requests.post(api_url, json=payload)
+        assert response.status_code == 411, response.text
