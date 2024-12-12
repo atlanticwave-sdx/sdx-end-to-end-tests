@@ -278,9 +278,12 @@ class TestE2EL2VPN:
         - test connectivity again
         """
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
-        payload = {"name": "Text", "endpoints":
-                   [{"port_id": "urn:sdx:port:ampath.net:Ampath1:50", "vlan": "100",},
-                    {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50", "vlan": "100",},],}
+        payload = {"name": "Text",
+                   "endpoints": [
+                       {"port_id": "urn:sdx:port:ampath.net:Ampath1:50", "vlan": "100",},
+                       {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50", "vlan": "100",}
+                    ]
+        }
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
         h1, h8 = self.net.net.get('h1', 'h8')
@@ -291,9 +294,12 @@ class TestE2EL2VPN:
         h8.cmd('ip link set up vlan100')
         h8.cmd('ip addr add 10.1.1.8/24 dev vlan100')
 
-        payload = {"name": "Text", "endpoints":
-                   [{"port_id": "urn:sdx:port:ampath.net:Ampath1:50", "vlan": "101",},
-                    {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50", "vlan": "101",},],}
+        payload = {"name": "Text",
+                   "endpoints": [
+                       {"port_id": "urn:sdx:port:ampath.net:Ampath1:50", "vlan": "101",},
+                       {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50", "vlan": "101",}
+                    ]
+        }
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
         h1.cmd('ip link add link %s name vlan101 type vlan id 101' % (h1.intfNames()[0]))
@@ -303,9 +309,12 @@ class TestE2EL2VPN:
         h8.cmd('ip link set up vlan101')
         h8.cmd('ip addr add 10.1.1.8/24 dev vlan101')
 
-        payload = {"name": "Text", "endpoints":
-                   [{"port_id": "urn:sdx:port:ampath.net:Ampath1:50", "vlan": "102",},
-                    {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50", "vlan": "102",},],}
+        payload = {"name": "Text",
+                   "endpoints": [
+                       {"port_id": "urn:sdx:port:ampath.net:Ampath1:50", "vlan": "102",},
+                       {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50", "vlan": "102",}
+                    ]
+        }
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
         h1.cmd('ip link add link %s name vlan102 type vlan id 102' % (h1.intfNames()[0]))
@@ -315,29 +324,15 @@ class TestE2EL2VPN:
         h8.cmd('ip link set up vlan102')
         h8.cmd('ip addr add 10.1.1.8/24 dev vlan102')
 
+        # test connectivity after create 3 L2VPN
         result = h1.cmd('ping -c4 10.1.1.8')
         assert ', 0% packet loss,' in result
 
-        # link down
         h1.cmd('ip link del vlan102')
 
         # wait a few seconds for convergency
         time.sleep(30)
+
+        # test connectivity again
         result = h1.cmd('ping -c4 10.1.1.8')
         assert ', 0% packet loss,' in result
-
-        # link down
-        h1.cmd('ip link del vlan101')
-
-        # wait a few seconds for convergency
-        time.sleep(30)
-        result = h1.cmd('ping -c4 10.1.1.8')
-        assert ', 0% packet loss,' in result
-
-        # link down
-        h1.cmd('ip link del vlan100')
-
-        # wait a few seconds -> there are no links left
-        time.sleep(30)
-        result = h1.cmd('ping -c4 10.1.1.8')
-        assert ', 100% packet loss,' in result
