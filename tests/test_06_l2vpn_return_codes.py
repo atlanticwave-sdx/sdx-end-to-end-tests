@@ -86,7 +86,7 @@ class TestE2EReturnCodes:
         """
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         payload = {
-            "name": "VLAN between AMPATH/400 and SAX/untagged",
+            "name": "VLAN between AMPATH/400 and TENET/untagged",
             "endpoints": [
                 {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "400"},
                 {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "untagged"}
