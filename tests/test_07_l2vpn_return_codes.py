@@ -26,8 +26,8 @@ class TestE2EReturnCodesEditL2vpn:
         cls.payload = {
             "name": "Test L2VPN request",
             "endpoints": [
-                {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "100"},
-                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "100"}
+                {"port_id": "urn:sdx:port:ampath.net:Ampath2:50","vlan": "50"},
+                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "50"}
             ]
         }
         response = requests.post(api_url, json=cls.payload)
@@ -53,8 +53,8 @@ class TestE2EReturnCodesEditL2vpn:
             cls.payload = {
                 "name": "Test L2VPN request",
                 "endpoints": [
-                    {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "100"},
-                    {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "100"}
+                    {"port_id": "urn:sdx:port:ampath.net:Ampath2:50","vlan": "50"},
+                    {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "50"}
                 ]
             }
             response = requests.post(api_url, json=cls.payload)
@@ -72,10 +72,11 @@ class TestE2EReturnCodesEditL2vpn:
         """
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         self.payload['endpoints'][0]['vlan'] = "200"
+        self.payload['endpoints'][1]['vlan'] = "200"
         response = requests.patch(f"{api_url}/{self.key}", json=self.payload)
         assert response.status_code == 201, response.text
 
-    def test_010_edit_l2vpn_port_id_code201(self):
+    def test_011_edit_l2vpn_port_id_code201(self):
         """
         Test the return code for creating a SDX L2VPN
         201: L2VPN Service Modified
@@ -120,7 +121,6 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.patch(f"{api_url}/{self.key}", json=self.payload)
         assert response.status_code == 400, response.text
 
-    @pytest.mark.xfail(reason="return status 201: Connection published")
     def test_023_edit_l2vpn_with_body_incomplete_code400(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -138,7 +138,6 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.patch(f"{api_url}/{self.key}", json=payload)
         assert response.status_code == 400, response.text
             
-    @pytest.mark.xfail(reason="return status 402: Could not generate a traffic matrix")
     def test_024_edit_l2vpn_with_body_incorrect_code400(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -156,7 +155,7 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.patch(f"{api_url}/{self.key}", json=payload)
         assert response.status_code == 400, response.text
         
-    @pytest.mark.xfail(reason="return status 500: Internal Server Error")
+    @pytest.mark.xfail(reason="return status 500 -> The server encountered an internal error --- No support for P2MP")
     def test_030_edit_l2vpn_with_p2mp_code402(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -184,7 +183,6 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.patch(f"{api_url}/{key}", json=self.payload)
         assert response.status_code == 404, response.text
 
-    @pytest.mark.xfail(reason="return status 400: PCE error: Can't find a valid vlan breakdown solution")
     def test_050_edit_l2vpn_conflict_code409(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -208,6 +206,7 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.patch(f"{api_url}/{self.key}", json=self.payload)
         assert response.status_code == 409, response.text
 
+    @pytest.mark.xfail(reason="return status 400 -> Validation error: Strict QoS requirements: 101 min_bw must be between 0 and 1000 -> (0-100?)")
     def test_060_edit_l2vpn_with_min_bw_out_of_range_code410(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -219,7 +218,7 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.patch(f"{api_url}/{self.key}", json=self.payload)
         assert response.status_code == 410, response.text
 
-    @pytest.mark.xfail(reason="return status 400: PCE error: Can't find a valid vlan breakdown solution")
+    @pytest.mark.xfail(reason="return status 400 -> Validation error: Strict QoS requirements: 1001 max_delay must be between 0 and 1000")
     def test_061_edit_l2vpn_with_max_delay_out_of_range_code410(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -231,7 +230,7 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.patch(f"{api_url}/{self.key}", json=self.payload)
         assert response.status_code == 410, response.text
 
-    @pytest.mark.xfail(reason="return status 400: PCE error: Can't find a valid vlan breakdown solution")
+    @pytest.mark.xfail(reason="return status 400 -> Error: Validation error: '<=' not supported between instances of 'int' and 'NoneType' ")
     def test_062_edit_l2vpn_with_max_number_oxps_out_of_range_code410(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -242,8 +241,8 @@ class TestE2EReturnCodesEditL2vpn:
         self.payload['qos_metrics'] = {'max_number_oxps':{'value': 101}}
         response = requests.patch(f"{api_url}/{self.key}", json=self.payload)
         assert response.status_code == 410, response.text
-           
-    @pytest.mark.xfail(reason="return status 400: PCE error: Can't find a valid vlan breakdown solution")
+    
+    @pytest.mark.xfail(reason="return status 400 -> Error: Validation error: '<=' not supported between instances of 'int' and 'NoneType' ")
     def test_072_edit_l2vpn_with_impossible_scheduling_code411(self):
         """
         Test the return code for creating a SDX L2VPN
