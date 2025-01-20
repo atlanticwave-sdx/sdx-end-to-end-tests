@@ -76,7 +76,6 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
 
-    @pytest.mark.xfail(reason="return status 410 -> PCE error: Can't find a vlan assignment")
     def test_013_create_l2vpn_with_vlan_untagged_code201(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -157,7 +156,6 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 400, response.text
 
-    @pytest.mark.xfail(reason="return status 410 -> PCE error: Can't find a vlan assignment")
     def test_022_create_l2vpn_with_vlan_all_code400(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -175,7 +173,6 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 400, response.text
     
-    @pytest.mark.xfail(reason="return status 201 -> Connection published")
     def test_023_create_l2vpn_with_body_incomplete_code400(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -229,7 +226,6 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 402, response.text
             
-    @pytest.mark.xfail(reason="return status 410 -> PCE error: Can't find a vlan assignment")
     def test_040_create_l2vpn_existing_code409(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -340,3 +336,4 @@ class TestE2EReturnCodes:
         }
         response = requests.post(api_url, json=payload)
         assert response.status_code == 411, response.text
+
