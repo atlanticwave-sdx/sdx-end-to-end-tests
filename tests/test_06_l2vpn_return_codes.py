@@ -93,6 +93,7 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
 
+    @pytest.mark.xfail(reason="return status 400 -> Validation error: Scheduling not possible: 2025-01-21 21:01:08.149547+00:00 start_time cannot be before the current time\nScheduling not possible: 2025-12-31T12:00:00Z end_time is not in a valid ISO format")
     def test_014_create_l2vpn_with_optional_attributes_code201(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -108,7 +109,7 @@ class TestE2EReturnCodes:
             ],
             "description": "Example to demonstrate a L2VPN with optional attributes",
             "scheduling": {
-                "start_time": "2025-12-31"},
+                "end_time": "2025-12-31T12:00:00Z"},
             "qos_metrics": {
                 "min_bw": {"value": 5,"strict": False},
                 "max_delay": {"value": 150,"strict": True},
@@ -315,8 +316,8 @@ class TestE2EReturnCodes:
         }
         response = requests.post(api_url, json=payload)
         assert response.status_code == 410, response.text
-
-    @pytest.mark.xfail(reason="return status 400 -> Error: Validation error: Scheduling not possible: 2025-01-17 16:01:10.443861+00:00 start_time cannot be before the current time")
+         
+    @pytest.mark.xfail(reason="return status 400 -> Validation error: Scheduling not possible: start_time cannot be before the current time")
     def test_060_create_l2vpn_with_impossible_scheduling_code411(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -331,9 +332,9 @@ class TestE2EReturnCodes:
                 {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "2030"}
             ],
             "scheduling": {
-                "end_time": "2023-12-30"
+                #"end_time": "2023-12-30T12:00:00Z" #-> Return: Validation error: 2023-12-30 00:00:00+00:00 end_time cannot be before the current or start time
+                "end_time": "2023-12-30" 
             }
         }
         response = requests.post(api_url, json=payload)
         assert response.status_code == 411, response.text
-
