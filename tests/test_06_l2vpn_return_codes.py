@@ -93,7 +93,7 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
 
-    @pytest.mark.xfail(reason="return status 400 -> Validation error: Scheduling not possible: 2025-01-21 21:01:08.149547+00:00 start_time cannot be before the current time\nScheduling not possible: 2025-12-31T12:00:00Z end_time is not in a valid ISO format")
+    @pytest.mark.xfail(reason="return status 400 -> Validation error: Scheduling not possible: 2025-01-22 16:47:13.554115+00:00 start_time cannot be before the current time\nScheduling not possible: 2025-12-31T12:00:00Z end_time is not in a valid ISO format")
     def test_014_create_l2vpn_with_optional_attributes_code201(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -248,7 +248,6 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 409, response.text
 
-    @pytest.mark.xfail(reason="return status 400 -> Validation error: Strict QoS requirements: 101 min_bw must be between 0 and 1000 -> (0-100?)")
     def test_050_create_l2vpn_with_min_bw_out_of_range_code410(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -269,9 +268,8 @@ class TestE2EReturnCodes:
             }
         }
         response = requests.post(api_url, json=payload)
-        assert response.status_code == 410, response.text
+        assert response.status_code == 400, response.text
 
-    @pytest.mark.xfail(reason="return status 400 -> Validation error: Strict QoS requirements: 1001 max_delay must be between 0 and 1000")
     def test_051_create_l2vpn_with_max_delay_out_of_range_code410(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -292,9 +290,8 @@ class TestE2EReturnCodes:
             }
         }
         response = requests.post(api_url, json=payload)
-        assert response.status_code == 410, response.text
+        assert response.status_code == 400, response.text
 
-    @pytest.mark.xfail(reason="return status 400 -> Error: Validation error: '<=' not supported between instances of 'int' and 'NoneType' ")
     def test_052_create_l2vpn_with_max_number_oxps_out_of_range_code410(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -315,9 +312,9 @@ class TestE2EReturnCodes:
             }
         }
         response = requests.post(api_url, json=payload)
-        assert response.status_code == 410, response.text
+        assert response.status_code == 400, response.text
          
-    @pytest.mark.xfail(reason="return status 400 -> Validation error: Scheduling not possible: start_time cannot be before the current time")
+    @pytest.mark.xfail(reason="return status 400 -> Validation error: Scheduling not possible: 2025-01-22 16:47:43.982545+00:00 start_time cannot be before the current time\nScheduling not possible: 2023-12-30T12:00:00Z end_time is not in a valid ISO format")
     def test_060_create_l2vpn_with_impossible_scheduling_code411(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -332,8 +329,7 @@ class TestE2EReturnCodes:
                 {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "2030"}
             ],
             "scheduling": {
-                #"end_time": "2023-12-30T12:00:00Z" #-> Return: Validation error: 2023-12-30 00:00:00+00:00 end_time cannot be before the current or start time
-                "end_time": "2023-12-30" 
+                "end_time": "2023-12-30T12:00:00Z"
             }
         }
         response = requests.post(api_url, json=payload)

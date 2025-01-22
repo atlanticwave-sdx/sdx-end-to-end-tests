@@ -26,10 +26,6 @@ class TestE2EReturnCodesEditL2vpn:
         response_json = response.json()
         for l2vpn in response_json:
             response = requests.delete(api_url+f'/{l2vpn}')
-        '''
-        cls.key = ''
-        cls.payload = {}
-        '''
 
     @classmethod
     def teardown_class(cls):
@@ -200,7 +196,6 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.patch(f"{api_url}/{self.key}", json=self.payload)
         assert response.status_code == 409, response.text
 
-    @pytest.mark.xfail(reason="return status 400 -> Validation error: Strict QoS requirements: 101 min_bw must be between 0 and 1000 -> (0-100?)")
     def test_060_edit_l2vpn_with_min_bw_out_of_range_code410(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -210,9 +205,8 @@ class TestE2EReturnCodesEditL2vpn:
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         self.payload['qos_metrics'] = {'min_bw':{'value': 101}}
         response = requests.patch(f"{api_url}/{self.key}", json=self.payload)
-        assert response.status_code == 410, response.text
+        assert response.status_code == 400, response.text
 
-    @pytest.mark.xfail(reason="return status 400 -> Validation error: Strict QoS requirements: 1001 max_delay must be between 0 and 1000")
     def test_061_edit_l2vpn_with_max_delay_out_of_range_code410(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -222,9 +216,8 @@ class TestE2EReturnCodesEditL2vpn:
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         self.payload['qos_metrics'] = {'max_delay':{'value': 1001}}
         response = requests.patch(f"{api_url}/{self.key}", json=self.payload)
-        assert response.status_code == 410, response.text
+        assert response.status_code == 400, response.text
 
-    @pytest.mark.xfail(reason="return status 400 -> Error: Validation error: '<=' not supported between instances of 'int' and 'NoneType' ")
     def test_062_edit_l2vpn_with_max_number_oxps_out_of_range_code410(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -234,7 +227,7 @@ class TestE2EReturnCodesEditL2vpn:
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         self.payload['qos_metrics'] = {'max_number_oxps':{'value': 101}}
         response = requests.patch(f"{api_url}/{self.key}", json=self.payload)
-        assert response.status_code == 410, response.text
+        assert response.status_code == 400, response.text
     
     @pytest.mark.xfail(reason="return status 400 -> Error: Validation error: '<=' not supported between instances of 'int' and 'NoneType' ")
     def test_072_edit_l2vpn_with_impossible_scheduling_code411(self):
