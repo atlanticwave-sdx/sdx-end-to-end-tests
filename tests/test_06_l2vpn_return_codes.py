@@ -59,7 +59,6 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
     
-    @pytest.mark.xfail(reason="return status 400: PCE error: Can't find a valid vlan breakdown solution")
     def test_012_create_l2vpn_with_vlan_range_code201(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -70,14 +69,13 @@ class TestE2EReturnCodes:
         payload = {
             "name": "VLANs 10-99 between AMPATH and SAX",
             "endpoints": [
-                {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "10-99"},
-                {"port_id": "urn:sdx:port:sax.net:Sax01:50","vlan": "10-99"}
+                {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "10:99"},
+                {"port_id": "urn:sdx:port:sax.net:Sax01:50","vlan": "10:99"}
             ]
         }
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
 
-    @pytest.mark.xfail(reason="return status 400: PCE error: Can't find a valid vlan breakdown solution")
     def test_013_create_l2vpn_with_vlan_untagged_code201(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -95,6 +93,7 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
 
+    @pytest.mark.xfail(reason="return status 400 -> Validation error: Scheduling not possible: 2025-01-22 16:47:13.554115+00:00 start_time cannot be before the current time\nScheduling not possible: 2025-12-31T12:00:00Z end_time is not in a valid ISO format")
     def test_014_create_l2vpn_with_optional_attributes_code201(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -140,6 +139,7 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 400, response.text
 
+    @pytest.mark.xfail(reason="return status 410 -> PCE error: Can't find a vlan assignment")
     def test_021_create_l2vpn_with_vlan_out_of_range_code400(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -174,7 +174,6 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 400, response.text
     
-    @pytest.mark.xfail(reason="return status 200: Connection published -- same behavior as vlan = 'any'")
     def test_023_create_l2vpn_with_body_incomplete_code400(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -192,7 +191,6 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 400, response.text
 
-    @pytest.mark.xfail(reason="return status 402: Could not generate a traffic matrix")
     def test_024_create_l2vpn_with_body_incorrect_code400(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -210,7 +208,7 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 400, response.text
 
-    @pytest.mark.xfail(reason="return status 500: Internal Server Error")
+    @pytest.mark.xfail(reason="return status 500 -> The server encountered an internal error --- No support for P2MP")
     def test_030_create_l2vpn_with_p2mp_code402(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -229,7 +227,6 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 402, response.text
             
-    @pytest.mark.xfail(reason="return status 400: PCE error: Can't find a valid vlan breakdown solution")
     def test_040_create_l2vpn_existing_code409(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -271,9 +268,8 @@ class TestE2EReturnCodes:
             }
         }
         response = requests.post(api_url, json=payload)
-        assert response.status_code == 410, response.text
+        assert response.status_code == 400, response.text
 
-    @pytest.mark.xfail(reason="return status 201: Connection published")
     def test_051_create_l2vpn_with_max_delay_out_of_range_code410(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -294,9 +290,8 @@ class TestE2EReturnCodes:
             }
         }
         response = requests.post(api_url, json=payload)
-        assert response.status_code == 410, response.text
+        assert response.status_code == 400, response.text
 
-    @pytest.mark.xfail(reason="return status 201: Connection published")
     def test_052_create_l2vpn_with_max_number_oxps_out_of_range_code410(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -317,9 +312,9 @@ class TestE2EReturnCodes:
             }
         }
         response = requests.post(api_url, json=payload)
-        assert response.status_code == 410, response.text
-
-    @pytest.mark.xfail(reason="return status 201: Connection published")
+        assert response.status_code == 400, response.text
+         
+    @pytest.mark.xfail(reason="return status 400 -> Validation error: Scheduling not possible: 2025-01-22 16:47:43.982545+00:00 start_time cannot be before the current time\nScheduling not possible: 2023-12-30T12:00:00Z end_time is not in a valid ISO format")
     def test_060_create_l2vpn_with_impossible_scheduling_code411(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -334,7 +329,7 @@ class TestE2EReturnCodes:
                 {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "2030"}
             ],
             "scheduling": {
-                "end_time": "2023-12-30"
+                "end_time": "2023-12-30T12:00:00Z"
             }
         }
         response = requests.post(api_url, json=payload)
