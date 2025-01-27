@@ -9,6 +9,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 60
+    networks:
+      - sdxnet
   mq1:
     image: rabbitmq:latest
     pull_policy: always
@@ -19,6 +21,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 60
+    networks:
+      - sdxnet
   ampath:
     image: amlight/kytos-sdx:latest
     pull_policy: always
@@ -40,6 +44,8 @@ services:
         rsyslogd
         kytosd --database mongodb
         tail -f /dev/null
+    networks:
+      - sdxnet
   sax:
     image: amlight/kytos-sdx:latest
     pull_policy: always
@@ -61,6 +67,8 @@ services:
         rsyslogd
         kytosd --database mongodb
         tail -f /dev/null
+    networks:
+      - sdxnet
   tenet:
     image: amlight/kytos-sdx:latest
     pull_policy: always
@@ -82,6 +90,8 @@ services:
         rsyslogd
         kytosd --database mongodb
         tail -f /dev/null
+    networks:
+      - sdxnet
   ampath-lc:
     image: awsdx/sdx-lc:latest
     pull_policy: always
@@ -105,6 +115,8 @@ services:
         python3 /sdx-end-to-end-tests/wait-rabbit.py
         python3 -m uvicorn sdx_lc.app:asgi_app --host 0.0.0.0 --port 8080
     command: [""]
+    networks:
+      - sdxnet
   sax-lc:
     image: awsdx/sdx-lc:latest
     pull_policy: always
@@ -128,6 +140,8 @@ services:
         python3 /sdx-end-to-end-tests/wait-rabbit.py
         python3 -m uvicorn sdx_lc.app:asgi_app --host 0.0.0.0 --port 8080
     command: [""]
+    networks:
+      - sdxnet
   tenet-lc:
     image: awsdx/sdx-lc:latest
     pull_policy: always
@@ -151,6 +165,8 @@ services:
         python3 /sdx-end-to-end-tests/wait-rabbit.py
         python3 -m uvicorn sdx_lc.app:asgi_app --host 0.0.0.0 --port 8080
     command: [""]
+    networks:
+      - sdxnet
   sdx-controller:
     image: awsdx/sdx-controller:latest
     pull_policy: always
@@ -174,6 +190,8 @@ services:
         python3 /sdx-end-to-end-tests/wait-rabbit.py
         python3 -m uvicorn sdx_controller.app:asgi_app --host 0.0.0.0 --port 8080
     command: [""]
+    networks:
+      - sdxnet
   mininet:
     image: italovalcy/mininet:latest
     pull_policy: always
@@ -194,3 +212,12 @@ services:
         apt-get update && apt-get install -y tmux jq python3-pytest python3-requests
         python3 -m pip install -r requirements.txt
         tail -f /dev/null
+    networks:
+      - sdxnet
+networks:
+   sdxnet:
+     enable_ipv6: true
+     ipam:
+       config:
+         - subnet: 2001:db8::/64
+
