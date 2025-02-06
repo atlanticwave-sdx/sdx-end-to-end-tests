@@ -120,7 +120,7 @@ class TestE2EReturnCodes:
         assert response.status_code == 201, response.text
 
     @pytest.mark.xfail(reason="return status 400 -> Validation error: Scheduling not possible ...")
-    def test_014_create_l2vpn_with_optional_attributes(self):
+    def test_015_create_l2vpn_with_optional_attributes(self):
         """
         Test the return code for creating a SDX L2VPN
         201: L2VPN Service Created
@@ -590,7 +590,7 @@ class TestE2EReturnCodes:
             ],
             "qos_metrics": {
                 "max_number_oxps": {
-                    "value": 100
+                    "value": 1
                 }
             }
         }
