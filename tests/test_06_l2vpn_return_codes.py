@@ -232,7 +232,7 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 400, response.text
 
-    def test_024_create_l2vpn_with_body_incorrect(self):
+    def test_025_create_l2vpn_with_body_incorrect(self):
         """
         Test the return code for creating a SDX L2VPN
         400: Request does not have a valid JSON or body is incomplete/incorrect
@@ -249,7 +249,7 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 400, response.text
 
-    def test_025_create_l2vpn_with_missing_name(self):
+    def test_026_create_l2vpn_with_missing_name(self):
         """
         Test the return code for creating a SDX L2VPN with a missing 'name' field
         400: Invalid JSON or incomplete body 
@@ -264,7 +264,7 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 400, response.text
 
-    def test_026_create_l2vpn_with_non_existent_port(self):
+    def test_027_create_l2vpn_with_non_existent_port(self):
         """
         Test return code for creating L2VPN with a non-existent port ID
         400: Invalid JSON or incomplete body 
@@ -280,7 +280,7 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 400, response.text
 
-    def test_027_create_l2vpn_with_invalid_port_id_format(self):
+    def test_028_create_l2vpn_with_invalid_port_id_format(self):
         """
         Test return code for creating L2VPN with invalid port ID format (incorrect URN format)
         400: Invalid JSON or incomplete body 
@@ -297,7 +297,7 @@ class TestE2EReturnCodes:
         assert response.status_code == 400, response.text
 
     @pytest.mark.xfail(reason="return status 500 -> The server encountered an internal error")
-    def test_028_create_l2vpn_with_with_single_endpoint(self):
+    def test_029_create_l2vpn_with_with_single_endpoint(self):
         """
         Test return code for creating L2VPN with with a single endpoint
         400: Invalid JSON or incomplete body 
