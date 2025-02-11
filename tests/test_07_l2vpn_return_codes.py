@@ -37,22 +37,21 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.get(api_url)
         assert response.status_code == 200, response.text
         response_json = response.json()
+        cls.payload = {
+            "name": "Test L2VPN request",
+            "endpoints": [
+                {"port_id": "urn:sdx:port:ampath.net:Ampath2:50","vlan": "50"},
+                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "50"}
+            ]
+        }
         if len(response_json) == 0:
             # Create an L2VPN to edit later
             api_url = SDX_CONTROLLER + '/l2vpn/1.0'
-            cls.payload = {
-                "name": "Test L2VPN request",
-                "endpoints": [
-                    {"port_id": "urn:sdx:port:ampath.net:Ampath2:50","vlan": "50"},
-                    {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "50"}
-                ]
-            }
             response = requests.post(api_url, json=cls.payload)
             assert response.status_code == 201, response.text
-
-        response = requests.get(api_url)
-        data = response.json()
-        cls.key = list(data.keys())[0]
+            cls.key = response.json()["service_id"]
+        else:
+            cls.key = list(response_json.keys())[0]
 
     def test_010_edit_l2vpn_vlan_code201(self):
         """
