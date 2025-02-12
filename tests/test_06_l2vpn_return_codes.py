@@ -119,13 +119,32 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
 
-    @pytest.mark.xfail(reason="return status 400 -> Validation error: Scheduling not possible ...")
+    def _future_date(self, isoformat_time=True):
+        # Get the current time
+        current_time = datetime.now()
+
+        # Get the current year and month
+        year = current_time.year
+        month = current_time.month
+
+        if month + 3 > 12:
+            month = month - 9
+            year += 1
+        else:
+            month += 3
+        day = 1
+
+        future_date = datetime(year, month, day)
+        if not isoformat_time:
+            return future_date.date().isoformat()
+        return future_date.strftime('%Y-%m-%dT%H:%M:%SZ')
+
+    @pytest.mark.note("This test should return code 201 when the schedule is supported.")
     def test_015_create_l2vpn_with_optional_attributes(self):
         """
         Test the return code for creating a SDX L2VPN
         201: L2VPN Service Created
         Example with optional attributes
-        ** Note: Possible code: 422: Attribute not supported (if scheduling is not supported)*
         """
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         payload = {
@@ -136,7 +155,7 @@ class TestE2EReturnCodes:
             ],
             "description": "Example to demonstrate a L2VPN with optional attributes",
             "scheduling": {
-                "end_time": "2025-12-31T12:00:00Z"},
+                "end_time": self._future_date()},
             "qos_metrics": {
                 "min_bw": {"value": 5,"strict": False},
                 "max_delay": {"value": 150,"strict": True},
@@ -147,7 +166,7 @@ class TestE2EReturnCodes:
             ]
         }
         response = requests.post(api_url, json=payload)
-        assert response.status_code == 201, response.text
+        assert response.status_code == 402, response.text
 
     def test_020_create_l2vpn_with_invalid_vlan_type(self):
         """
@@ -165,7 +184,6 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 400, response.text
 
-    @pytest.mark.xfail(reason="return status 410 -> PCE error: Can't find a vlan assignment")
     def test_021_create_l2vpn_with_vlan_out_of_range(self):
         """
         Test the return code for creating a SDX L2VPN with an out-of-range VLAN
@@ -182,7 +200,6 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 400, response.text
 
-    @pytest.mark.xfail(reason="return status 410 -> PCE error: Can't find a vlan assignment")
     def test_022_create_l2vpn_with_vlan_negative(self):
         """
         Test the return code for creating a SDX L2VPN with a negative VLAN
@@ -296,7 +313,6 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 400, response.text
 
-    @pytest.mark.xfail(reason="return status 500 -> The server encountered an internal error")
     def test_029_create_l2vpn_with_with_single_endpoint(self):
         """
         Test return code for creating L2VPN with with a single endpoint
@@ -312,7 +328,6 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 400, response.text
 
-    @pytest.mark.xfail(reason="return status 500 -> The server encountered an internal error --- No support for P2MP")
     def test_030_create_l2vpn_with_p2mp(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -352,6 +367,7 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 409, response.text
 
+    @pytest.mark.xfail(reason="return status 410 -> Could not solve the request - Fail if min_bw > 10")
     def test_050_create_l2vpn_with_valid_bw(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -365,7 +381,7 @@ class TestE2EReturnCodes:
             ],
             "qos_metrics": {
                 "min_bw": {
-                    "value": 10 # Fail with 11
+                    "value": 11
                 }
             }
         }
@@ -443,14 +459,51 @@ class TestE2EReturnCodes:
             ],
             "qos_metrics": {
                 "min_bw": {
-                    "value": 1 # Fail with value > 10
+                    "value": 91
                 }
             }
         }
         response = requests.post(api_url, json=payload)
         assert response.status_code == 410, response.text
 
-    def test_054_create_l2vpn_with_valid_max_delay(self):
+    @pytest.mark.xfail(reason="return status 410 -> Could not solve the request - Fail if one of the value for min_bw > 10")
+    def test_054_create_l2vpn_with_all_available_bw(self):
+        """
+        Test the return code for creating a SDX L2VPN
+        410: Can't fulfill the strict QoS requirements
+        """
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        payload = {
+            "name": "Test L2VPN creation",
+            "endpoints": [
+                {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "100"},
+                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "100"}
+            ],
+            "qos_metrics": {
+                "min_bw": {
+                    "value": 11
+                }
+            }
+        }
+        response = requests.post(api_url, json=payload)
+        assert response.status_code == 201, response.text
+
+        payload = {
+            "name": "Test L2VPN creation no available bw",
+            "endpoints": [
+                {"port_id": "urn:sdx:port:ampath.net:Ampath2:50","vlan": "200"},
+                {"port_id": "urn:sdx:port:sax.net:Sax01:50","vlan": "200"}
+            ],
+            "qos_metrics": {
+                "min_bw": {
+                    "value": 89
+                }
+            }
+        }
+        response = requests.post(api_url, json=payload)
+        assert response.status_code == 201, response.text
+
+    def test_055_create_l2vpn_with_valid_max_delay(self):
         """
         Test the return code for creating a SDX L2VPN
         """
@@ -463,14 +516,14 @@ class TestE2EReturnCodes:
             ],
             "qos_metrics": {
                 "max_delay": {
-                    "value": 10
+                    "value": 50
                 }
             }
         }
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
 
-    def test_055_create_l2vpn_with_max_delay_out_of_range(self):
+    def test_056_create_l2vpn_with_max_delay_out_of_range(self):
         """
         Test the return code for creating a SDX L2VPN
         Case: max_delay out of range (value must be in [0-1000])
@@ -491,7 +544,7 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 400, response.text
 
-    def test_056_create_l2vpn_with_max_delay_negative(self):
+    def test_057_create_l2vpn_with_max_delay_negative(self):
         """
         Test the return code for creating a SDX L2VPN
         Case: max_delay negative (value must be in [0-1000])
@@ -512,8 +565,7 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 400, response.text
 
-    @pytest.mark.xfail(reason="return status 400 -> Error: Validation error: '<=' not supported between instances of 'int' and 'NoneType")
-    def test_057_create_l2vpn_with_valid_max_number_oxps(self):
+    def test_058_create_l2vpn_with_valid_max_number_oxps(self):
         """
         Test the return code for creating a SDX L2VPN
         """
@@ -526,14 +578,14 @@ class TestE2EReturnCodes:
             ],
             "qos_metrics": {
                 "max_number_oxps": {
-                    "value": 1 # Fail if value is specified
+                    "value": 50
                 }
             }
         }
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
 
-    def test_058_create_l2vpn_with_max_number_oxps_out_of_range(self):
+    def test_059_create_l2vpn_with_max_number_oxps_out_of_range(self):
         """
         Test the return code for creating a SDX L2VPN
         Case: max_number_oxps out of range (value must be in [0-100])
@@ -554,7 +606,7 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 400, response.text
          
-    def test_059_create_l2vpn_with_max_number_oxps_negative(self):
+    def test_060_create_l2vpn_with_max_number_oxps_negative(self):
         """
         Test the return code for creating a SDX L2VPN
         Case: max_number_oxps negative (value must be in [0-100])
@@ -575,8 +627,8 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 400, response.text
 
-    @pytest.mark.xfail(reason="return status 400 -> Error: Validation error: '<=' not supported between instances of 'int' and 'NoneType")
-    def test_060_create_l2vpn_with_no_available_oxps(self):
+    @pytest.mark.xfail(reason="return status 201 -> Connection published - number_oxps = 10+91 > 100")
+    def test_061_create_l2vpn_with_no_available_oxps(self):
         """
         Test the return code for creating a SDX L2VPN
         410: Can't fulfill the strict QoS requirements
@@ -590,7 +642,7 @@ class TestE2EReturnCodes:
             ],
             "qos_metrics": {
                 "max_number_oxps": {
-                    "value": 1
+                    "value": 10
                 }
             }
         }
@@ -605,20 +657,55 @@ class TestE2EReturnCodes:
             ],
             "qos_metrics": {
                 "max_number_oxps": {
-                    "value": 1
+                    "value": 91
                 }
             }
         }
         response = requests.post(api_url, json=payload)
         assert response.status_code == 410, response.text
 
-    @pytest.mark.xfail(reason="return status 400 -> Validation error: Scheduling not possible")
+    def test_062_create_l2vpn_with_all_available_oxps(self):
+        """
+        Test the return code for creating a SDX L2VPN
+        410: Can't fulfill the strict QoS requirements
+        """
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        payload = {
+            "name": "Test L2VPN creation",
+            "endpoints": [
+                {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "100"},
+                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "100"}
+            ],
+            "qos_metrics": {
+                "max_number_oxps": {
+                    "value": 10
+                }
+            }
+        }
+        response = requests.post(api_url, json=payload)
+        assert response.status_code == 201, response.text
+
+        payload = {
+            "name": "Test L2VPN creation no available oxps",
+            "endpoints": [
+                {"port_id": "urn:sdx:port:ampath.net:Ampath2:50","vlan": "200"},
+                {"port_id": "urn:sdx:port:sax.net:Sax01:50","vlan": "200"}
+            ],
+            "qos_metrics": {
+                "max_number_oxps": {
+                    "value": 90
+                }
+            }
+        }
+        response = requests.post(api_url, json=payload)
+        assert response.status_code == 201, response.text
+
+    @pytest.mark.note("This test should return code 411(400?) when the schedule is supported.")
     def test_070_create_l2vpn_with_impossible_scheduling(self):
         """
         Test the return code for creating a SDX L2VPN
         411: Scheduling not possible
         end_time before current date
-        ** Note: Possible code: 422: Attribute not supported (if scheduling is not supported)*
         """
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         payload = {
@@ -632,4 +719,24 @@ class TestE2EReturnCodes:
             }
         }
         response = requests.post(api_url, json=payload)
-        assert response.status_code == 411, response.text
+        assert response.status_code == 402, response.text
+
+    @pytest.mark.note("This test should return code 400 when the schedule is supported.")
+    def test_071_create_l2vpn_with_formatting_issue(self):
+        """
+        Test the return code for creating a SDX L2VPN
+        Format YYYY-MM-DD, should be YYYY-MM-DDTHH:MM:SSZ
+        """
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        payload = {
+            "name": "VLAN between AMPATH/2030 and TENET/2030",
+            "endpoints": [
+                {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "100"},
+                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "100"}
+            ],
+            "scheduling": {
+                "end_time": self._future_date(False)
+            }
+        }
+        response = requests.post(api_url, json=payload)
+        assert response.status_code == 402, response.text
