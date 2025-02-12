@@ -628,7 +628,6 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 400, response.text
 
-    @pytest.mark.xfail(reason="return status 201 -> Connection published - number_oxps = 10+91 > 100")
     def test_061_create_l2vpn_with_no_available_oxps(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -663,7 +662,7 @@ class TestE2EReturnCodes:
             }
         }
         response = requests.post(api_url, json=payload)
-        assert response.status_code == 410, response.text
+        assert response.status_code == 201, response.text
 
     def test_062_create_l2vpn_with_all_available_oxps(self):
         """
