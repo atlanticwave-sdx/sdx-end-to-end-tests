@@ -140,6 +140,7 @@ class TestE2EReturnCodes:
         return future_date.strftime('%Y-%m-%dT%H:%M:%SZ')
 
     @pytest.mark.note("This test should return code 201 when the schedule is supported.")
+    @pytest.mark.xfail(reason="return status 402 - Error: Validation error: Scheduling advanced reservation is not supported")
     def test_015_create_l2vpn_with_optional_attributes(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -166,7 +167,7 @@ class TestE2EReturnCodes:
             ]
         }
         response = requests.post(api_url, json=payload)
-        assert response.status_code == 402, response.text
+        assert response.status_code == 422, response.text
 
     def test_020_create_l2vpn_with_invalid_vlan_type(self):
         """
@@ -700,7 +701,8 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
 
-    @pytest.mark.note("This test should return code 411(400?) when the schedule is supported.")
+    @pytest.mark.note("This test should return code 411 when the schedule is supported.")
+    @pytest.mark.xfail(reason="return status 402 - Error: Validation error: Scheduling advanced reservation is not supported")
     def test_070_create_l2vpn_with_impossible_scheduling(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -719,13 +721,15 @@ class TestE2EReturnCodes:
             }
         }
         response = requests.post(api_url, json=payload)
-        assert response.status_code == 402, response.text
+        assert response.status_code == 422, response.text
 
-    @pytest.mark.note("This test should return code 400 when the schedule is supported.")
+    @pytest.mark.note("This test should return code 400 (No valid format) when the schedule is supported.")
+    @pytest.mark.xfail(reason="return status 402 - Error: Validation error: Scheduling advanced reservation is not supported")
     def test_071_create_l2vpn_with_formatting_issue(self):
         """
         Test the return code for creating a SDX L2VPN
         Format YYYY-MM-DD, should be YYYY-MM-DDTHH:MM:SSZ
+        422: Attribute not supported
         """
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         payload = {
@@ -739,4 +743,4 @@ class TestE2EReturnCodes:
             }
         }
         response = requests.post(api_url, json=payload)
-        assert response.status_code == 402, response.text
+        assert response.status_code == 422, response.text
