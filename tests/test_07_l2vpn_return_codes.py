@@ -409,7 +409,6 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.patch(f"{api_url}/{self.key}", json=payload)
         assert response.status_code == 400, response.text
     
-    @pytest.mark.note("This test should return code 411 when the schedule is supported.")
     @pytest.mark.xfail(reason="return status 402 - Error: Validation error: Scheduling advanced reservation is not supported")
     def test_070_edit_l2vpn_with_impossible_scheduling(self):
         """
@@ -417,6 +416,7 @@ class TestE2EReturnCodesEditL2vpn:
         411: Scheduling not possible
         end_time before current date
         422: Attribute not supported
+        Note: This test should return code 411 when the schedule is supported.
         """
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         self.payload['scheduling'] = {'end_time': "2023-12-31T12:00:00Z"}
