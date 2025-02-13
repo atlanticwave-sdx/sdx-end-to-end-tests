@@ -127,5 +127,5 @@ class TestE2EReturnCodesListL2vpn:
         """
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         key = [-1]*32
-        response = requests.get(f"{api_url}/{key}")
+        response = requests.delete(f"{api_url}/{key}")
         assert response.status_code == 404, response.text
