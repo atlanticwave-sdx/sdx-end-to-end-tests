@@ -20,13 +20,6 @@ class TestE2EReturnCodesEditL2vpn:
         cls.net = NetworkTest(["ampath", "sax", "tenet"])
         cls.net.wait_switches_connect()
         cls.net.run_setup_topo()
-        # It is ensured that at the beginning there is no L2VPN
-        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
-        response = requests.get(api_url)
-        assert response.status_code == 200, response.text
-        response_json = response.json()
-        for l2vpn in response_json:
-            response = requests.delete(api_url+f'/{l2vpn}')
 
     @classmethod
     def teardown_class(cls):
