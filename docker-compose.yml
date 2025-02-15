@@ -198,11 +198,14 @@ services:
     privileged: true
     volumes:
       - .:/sdx-end-to-end-tests
+      - /lib/modules:/lib/modules
     working_dir: /sdx-end-to-end-tests
     depends_on:
       - ampath
       - sax
       - tenet
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
     entrypoint:
       - "/bin/bash"
       - "-x"
