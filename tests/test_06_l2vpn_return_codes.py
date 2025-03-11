@@ -368,7 +368,6 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 409, response.text
 
-    @pytest.mark.xfail(reason="return status 410 -> Could not solve the request - Fail if min_bw > 10")
     def test_050_create_l2vpn_with_valid_bw(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -382,7 +381,7 @@ class TestE2EReturnCodes:
             ],
             "qos_metrics": {
                 "min_bw": {
-                    "value": 11
+                    "value": 10
                 }
             }
         }
@@ -467,8 +466,7 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 410, response.text
 
-    @pytest.mark.xfail(reason="return status 410 -> Could not solve the request - Fail if one of the value for min_bw > 10")
-    def test_054_create_l2vpn_with_all_available_bw(self):
+    def test_054_create_l2vpn_with_available_bw(self):
         """
         Test the return code for creating a SDX L2VPN
         410: Can't fulfill the strict QoS requirements
@@ -482,7 +480,7 @@ class TestE2EReturnCodes:
             ],
             "qos_metrics": {
                 "min_bw": {
-                    "value": 11
+                    "value": 5
                 }
             }
         }
@@ -497,7 +495,7 @@ class TestE2EReturnCodes:
             ],
             "qos_metrics": {
                 "min_bw": {
-                    "value": 89
+                    "value": 5
                 }
             }
         }
@@ -710,7 +708,7 @@ class TestE2EReturnCodes:
         """
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         payload = {
-            "name": "VLAN between AMPATH/2030 and TENET/2030",
+            "name": "Test L2VPN creation with scheduling not possible",
             "endpoints": [
                 {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "100"},
                 {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "100"}
@@ -732,7 +730,7 @@ class TestE2EReturnCodes:
         """
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         payload = {
-            "name": "VLAN between AMPATH/2030 and TENET/2030",
+            "name": "Test L2VPN creation with formatting issue",
             "endpoints": [
                 {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "100"},
                 {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "100"}
@@ -743,3 +741,35 @@ class TestE2EReturnCodes:
         }
         response = requests.post(api_url, json=payload)
         assert response.status_code == 422, response.text
+
+    #@pytest.mark.xfail(reason="return status 400: Request does not have a valid JSON or body is incomplete/incorrect")
+    def test_080_create_l2vpn_with_no_path_available_between_endpoints(self):
+        """
+        Test the return code for creating a SDX L2VPN
+        412: No path available between endpoints
+        """
+
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        payload = {"name": "Text",
+                   "endpoints": [
+                       {"port_id": "urn:sdx:port:ampath.net:Ampath1:50", "vlan": "100"},
+                       {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50", "vlan": "100"}
+                    ]
+        }
+        response = requests.post(api_url, json=payload)
+        assert response.status_code == 201, response.text
+
+        response = requests.get(api_url)
+        assert response.status_code == 200, response.text
+        response_json = response.json()
+        for l2vpn in response_json:
+            response = requests.delete(api_url+f'/{l2vpn}')
+
+        # set one link to down
+        self.net.net.configLinkStatus('Tenet01', 'Tenet03', 'down')
+
+        # wait a few seconds for convergency
+        time.sleep(15)
+
+        response = requests.post(api_url, json=payload)
+        assert response.status_code == 412, response.text
