@@ -278,7 +278,6 @@ class TestE2EL2VPN:
         response = requests.get("http://tenet:8181/api/kytos/mef_eline/v2/evc/")
         assert len(response.json()) == 0, response.text
 
-    @pytest.mark.xfail(reason="AssertionError: assert ', 0% packet loss, ... 100% packet loss,...'")
     def test_060_link_convergency_with_l2vpn_with_alternative_paths(self):
         """
         Test a simple link convergency with L2VPNs that have alternative paths:
