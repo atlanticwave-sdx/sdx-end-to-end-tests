@@ -114,7 +114,6 @@ class TestE2ETopology:
         assert ports[port2]["status"] == "down", str(ports[port2])
         assert links[link1]["status"] == "down", str(links[link1])
 
-    #@pytest.mark.xfail(reason="")
     def test_030_location_change(self):
         """Test Location changes""" 
         api_url = SDX_CONTROLLER + '/topology'
