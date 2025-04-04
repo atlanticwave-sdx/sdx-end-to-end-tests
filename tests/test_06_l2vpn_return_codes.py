@@ -139,7 +139,7 @@ class TestE2EReturnCodes:
             return future_date.date().isoformat()
         return future_date.strftime('%Y-%m-%dT%H:%M:%SZ')
 
-    #@pytest.mark.xfail(reason="return status 402 - Error: Validation error: Scheduling advanced reservation is not supported")
+    #@pytest.mark.xfail(reason="return status 400 - Validation error: Scheduling advanced reservation is not supported")
     def test_015_create_l2vpn_with_optional_attributes(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -698,7 +698,7 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
 
-    #@pytest.mark.xfail(reason="return status 402 - Error: Validation error: Scheduling advanced reservation is not supported")
+    #@pytest.mark.xfail(reason="return status 400 - Validation error: Scheduling advanced reservation is not supported")
     def test_070_create_l2vpn_with_impossible_scheduling(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -720,7 +720,7 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 422, response.text
 
-    #@pytest.mark.xfail(reason="return status 402 - Error: Validation error: Scheduling advanced reservation is not supported")
+    #@pytest.mark.xfail(reason="return status 400 - Validation error: Scheduling advanced reservation is not supported")
     def test_071_create_l2vpn_with_formatting_issue(self):
         """
         Test the return code for creating a SDX L2VPN

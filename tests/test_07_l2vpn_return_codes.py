@@ -45,13 +45,14 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.post(api_url, json=cls.payload)
         assert response.status_code == 201, response.text
 
-        # wait a few seconds so that status changes fro UNDER_PROVISIONING to UP
+        # wait a few seconds so that status changes for UNDER_PROVISIONING to UP
         time.sleep(5)
 
         response = requests.get(api_url)
         data = response.json()
         cls.key = list(data.keys())[0]
 
+    #@pytest.mark.xfail(reason="status: 500")
     def test_010_edit_l2vpn_vlan(self):
         """
         Test the return code for editing a SDX L2VPN
@@ -64,6 +65,7 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.patch(f"{api_url}/{self.key}", json=self.payload)
         assert response.status_code == 201, response.text
 
+    #@pytest.mark.xfail(reason="status: 500")
     def test_011_edit_l2vpn_port_id(self):
         """
         Test the return code for editing a SDX L2VPN
@@ -97,6 +99,7 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.patch(f"{api_url}/{self.key}", json=self.payload)
         assert response.status_code == 400, response.text
 
+    #@pytest.mark.xfail(reason="status: 500")
     def test_022_edit_l2vpn_with_vlan_all(self):
         """
         Test the return code for editing a SDX L2VPN
@@ -109,6 +112,7 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.patch(f"{api_url}/{self.key}", json=self.payload)
         assert response.status_code == 400, response.text
 
+    #@pytest.mark.xfail(reason="status: 500")
     def test_023_edit_l2vpn_with_missing_vlan(self):
         """
         Test the return code for editing a SDX L2VPN
@@ -126,6 +130,7 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.patch(f"{api_url}/{self.key}", json=payload)
         assert response.status_code == 400, response.text
             
+    #@pytest.mark.xfail(reason="status: 500")
     def test_024_edit_l2vpn_with_body_incorrect(self):
         """
         Test the return code for editing a SDX L2VPN
@@ -169,6 +174,7 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.patch(f"{api_url}/{self.key}", json=payload)
         assert response.status_code == 400, response.text
 
+    #@pytest.mark.xfail(reason="status: 500")
     def test_027_edit_l2vpn_with_non_existent_port(self):
         """
         Test return code for editing L2VPN with a non-existent port ID
@@ -179,6 +185,7 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.patch(f"{api_url}/{self.key}", json=self.payload)
         assert response.status_code == 400, response.text
 
+    #@pytest.mark.xfail(reason="status: 500")
     def test_028_edit_l2vpn_with_invalid_port_id_format(self):
         """
         Test return code for editing L2VPN with invalid port ID format (incorrect URN format)
@@ -189,6 +196,7 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.patch(f"{api_url}/{self.key}", json=self.payload)
         assert response.status_code == 400, response.text
 
+    #@pytest.mark.xfail(reason="status: 500")
     def test_029_edit_l2vpn_with_with_single_endpoint(self):
         """
         Test return code for editing L2VPN with with a single endpoint
@@ -204,6 +212,7 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.patch(f"{api_url}/{self.key}", json=payload)
         assert response.status_code == 400, response.text
 
+    #@pytest.mark.xfail(reason="status: 500")
     def test_030_edit_l2vpn_with_p2mp(self):
         """
         Test the return code for editing a SDX L2VPN
@@ -231,6 +240,7 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.patch(f"{api_url}/{key}", json=self.payload)
         assert response.status_code == 404, response.text
 
+    #@pytest.mark.xfail(reason="status: 500")
     def test_050_edit_l2vpn_conflict(self):
         """
         Test the return code for editing a SDX L2VPN
@@ -254,6 +264,7 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.patch(f"{api_url}/{self.key}", json=self.payload)
         assert response.status_code == 409, response.text
 
+    #@pytest.mark.xfail(reason="status: 500")
     def test_060_edit_l2vpn_with_min_bw(self):
         """
         Test the return code for editing a SDX L2VPN
@@ -275,6 +286,7 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.patch(f"{api_url}/{self.key}", json=payload)
         assert response.status_code == 201, response.text
 
+    #@pytest.mark.xfail(reason="status: 500")
     def test_061_edit_l2vpn_with_max_delay(self):
         """
         Test the return code for editing a SDX L2VPN
@@ -296,6 +308,7 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.patch(f"{api_url}/{self.key}", json=self.payload)
         assert response.status_code == 201, response.text
 
+    #@pytest.mark.xfail(reason="status: 500")
     def test_062_edit_l2vpn_with_max_number_oxps(self):
         """
         Test the return code for editing a SDX L2VPN
@@ -317,6 +330,7 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.patch(f"{api_url}/{self.key}", json=payload)
         assert response.status_code == 201, response.text
 
+    #@pytest.mark.xfail(reason="status: 500")
     def test_063_edit_l2vpn_with_min_bw_out_of_range(self):
         """
         Test the return code for editing a SDX L2VPN
@@ -339,6 +353,7 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.patch(f"{api_url}/{self.key}", json=payload)
         assert response.status_code == 400, response.text
 
+    #@pytest.mark.xfail(reason="status: 500")
     def test_064_edit_l2vpn_with_max_delay_out_of_range(self):
         """
         Test the return code for editing a SDX L2VPN
@@ -361,6 +376,7 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.patch(f"{api_url}/{self.key}", json=payload)
         assert response.status_code == 400, response.text
 
+    #@pytest.mark.xfail(reason="status: 500")
     def test_065_edit_l2vpn_with_max_number_oxps_out_of_range(self):
         """
         Test the return code for editing a SDX L2VPN
@@ -383,6 +399,7 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.patch(f"{api_url}/{self.key}", json=payload)
         assert response.status_code == 400, response.text
     
+    #@pytest.mark.xfail(reason="status: 500")
     def test_066_edit_l2vpn_with_no_available_bw(self):
         """
         Test the return code for editing a SDX L2VPN
@@ -420,7 +437,7 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.patch(f"{api_url}/{self.key}", json=payload)
         assert response.status_code == 410, response.text
 
-    #@pytest.mark.xfail(reason="return status 402 - Error: Validation error: Scheduling advanced reservation is not supported")
+    #@pytest.mark.xfail(reason="status: 500")
     def test_070_edit_l2vpn_with_impossible_scheduling(self):
         """
         Test the return code for editing a SDX L2VPN
