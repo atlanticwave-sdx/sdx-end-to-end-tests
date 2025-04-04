@@ -314,7 +314,7 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 400, response.text
 
-    def test_029_create_l2vpn_with_with_single_endpoint(self):
+    def test_029_create_l2vpn_with_single_endpoint(self):
         """
         Test return code for creating L2VPN with with a single endpoint
         400: Invalid JSON or incomplete body 

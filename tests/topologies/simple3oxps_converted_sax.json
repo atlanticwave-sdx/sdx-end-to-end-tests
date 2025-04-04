@@ -35,6 +35,7 @@
               ]
             }
           },
+	  "entities": [],
           "private": [
             "status"
           ]
@@ -58,6 +59,7 @@
               ]
             }
           },
+	  "entities": [],
           "private": [
             "status"
           ]
@@ -81,6 +83,7 @@
               ]
             }
           },
+	  "entities": [],
           "private": [
             "status"
           ]
@@ -104,6 +107,7 @@
               ]
             }
           },
+	  "entities": [],
           "private": [
             "status"
           ]
@@ -142,6 +146,7 @@
               ]
             }
           },
+	  "entities": [],
           "private": [
             "status"
           ]
@@ -165,6 +170,7 @@
               ]
             }
           },
+	  "entities": [],
           "private": [
             "status"
           ]
@@ -188,6 +194,7 @@
               ]
             }
           },
+	  "entities": [],
           "private": [
             "status"
           ]
@@ -211,6 +218,7 @@
               ]
             }
           },
+	  "entities": [],
           "private": [
             "status"
           ]
@@ -233,7 +241,7 @@
       "residual_bandwidth": 100,
       "latency": 0,
       "packet_loss": 0,
-      "availability": 0,
+      "availability": 100,
       "status": "up",
       "state": "enabled",
       "private": [

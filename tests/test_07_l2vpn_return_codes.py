@@ -45,6 +45,9 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.post(api_url, json=cls.payload)
         assert response.status_code == 201, response.text
 
+        # wait a few seconds so that status changes fro UNDER_PROVISIONING to UP
+        time.sleep(5)
+
         response = requests.get(api_url)
         data = response.json()
         cls.key = list(data.keys())[0]
