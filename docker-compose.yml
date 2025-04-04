@@ -181,6 +181,7 @@ services:
     volumes:
       - .:/sdx-end-to-end-tests
       - /lib/modules:/lib/modules
+      - ./reports:/tmp
     working_dir: /sdx-end-to-end-tests
     depends_on:
       - ampath
