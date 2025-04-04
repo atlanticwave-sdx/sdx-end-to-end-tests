@@ -51,9 +51,12 @@ class TestE2EL2VPN:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
         response_json = response.json()
-        assert response_json.get("status") == "OK", response_json
+        assert response_json.get("status") == "under provisioning", response_json
         service_id = response_json.get("service_id")
         assert service_id != None, response_json
+
+        # give enough time to SDX-Controller to propagate change to OXPs
+        time.sleep(10)
 
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         response = requests.get(api_url)
@@ -61,9 +64,7 @@ class TestE2EL2VPN:
         response_json = response.json()
         assert len(response_json) == 1, response_json
         assert service_id in response_json, response_json
-
-        # give enough time to SDX-Controller to propagate change to OXPs
-        time.sleep(10)
+        assert response_json[service_id].get("status") == "up", response_json
 
         # make sure OXPs have the new EVCs
         ## -> ampath
@@ -107,9 +108,12 @@ class TestE2EL2VPN:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
         response_json = response.json()
-        assert response_json.get("status") == "OK", response_json
+        assert response_json.get("status") == "under provisioning", response_json
         service_id = response_json.get("service_id")
         assert service_id != None, response_json
+
+        # give enough time to SDX-Controller to propagate change to OXPs
+        time.sleep(10)
 
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         response = requests.get(api_url)
@@ -117,9 +121,7 @@ class TestE2EL2VPN:
         response_json = response.json()
         assert len(response_json) == 2, response_json
         assert service_id in response_json, response_json
-
-        # give enough time to SDX-Controller to propagate change to OXPs
-        time.sleep(10)
+        assert response_json[service_id].get("status") == "up", response_json
 
         # make sure OXPs have the new EVCs
         ## -> ampath
@@ -151,6 +153,9 @@ class TestE2EL2VPN:
             if evc.get("uni_z", {}).get("tag", {}).get("value") == 100:
                 found += 1
         assert found == 0, evcs
+
+        # wait a few seconds to allow status change from UNDER_PROVISIONG to UP
+        time.sleep(5)
 
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         response = requests.get(api_url)
@@ -206,6 +211,9 @@ class TestE2EL2VPN:
 
     def test_045_edit_port_l2vpn_successfully(self):
         """Test change the port_id of endpoints of an existing L2vpn connection."""
+        # wait a few seconds to allow status change from UNDER_PROVISIONG to UP
+        time.sleep(5)
+
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         response = requests.get(api_url)
         data = response.json()

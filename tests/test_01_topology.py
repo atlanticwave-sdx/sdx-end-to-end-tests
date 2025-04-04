@@ -129,14 +129,25 @@ class TestE2ETopology:
         key = next(iter(ampath_switches))
         item_to_change_id = ampath_switches[key]['id']
 
+        # Get OXP version
+        sdx_api = KYTOS_SDX_API % ampath_ctrl
+        response = requests.get(f"{sdx_api}/topology/2.0.0")
+        oxp_ver1 = response.json()["version"]
+
         new_metadata = {"lat": "1", "lng": "2", "address": "Miami", "iso3166_2_lvl4": "US-FL"}
         response = requests.post(f"{ampath_topo_api}/switches/{item_to_change_id}/metadata", json=new_metadata)
         assert 200 <= response.status_code < 300, response.text
 
+        # Allow time for OXP process the topology update
+        time.sleep(5)
+
         # Force the Kytos SDX controller controller to send the topology to the SDX-LC
-        sdx_api = KYTOS_SDX_API % ampath_ctrl
         response = requests.post(f"{sdx_api}/topology/2.0.0")
         assert response.status_code == 200
+
+        # Get OXP version
+        response = requests.get(f"{sdx_api}/topology/2.0.0")
+        oxp_ver2 = response.json()["version"]
     
         response = requests.get(f"{ampath_topo_api}/switches")
         assert response.status_code == 200
@@ -144,7 +155,10 @@ class TestE2ETopology:
         metadata = ampath_switches[item_to_change_id]['metadata']
         assert metadata == new_metadata, str(metadata)
 
+        # allow some time for SDX-Controller receive the topology update
+        time.sleep(10)
+
         api_url = SDX_CONTROLLER + '/topology'
         response = requests.get(api_url)
         data = response.json()
-        assert version < float(data["version"]), str(data['version'])
+        assert version < float(data["version"]), f"sdx_version={data['version']} {oxp_ver1=} {oxp_ver2=}"
