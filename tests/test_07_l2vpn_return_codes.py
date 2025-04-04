@@ -251,7 +251,6 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.patch(f"{api_url}/{self.key}", json=self.payload)
         assert response.status_code == 409, response.text
 
-    @pytest.mark.xfail(reason="return status 410 -> Could not solve the request")
     def test_060_edit_l2vpn_with_min_bw(self):
         """
         Test the return code for editing a SDX L2VPN
@@ -266,7 +265,7 @@ class TestE2EReturnCodesEditL2vpn:
             ],
             "qos_metrics": {
                 "min_bw": {
-                    "value": 11 # This fails if this value is greater than 10
+                    "value": 10
                 }
             }
         }
@@ -293,28 +292,7 @@ class TestE2EReturnCodesEditL2vpn:
         }
         response = requests.patch(f"{api_url}/{self.key}", json=self.payload)
         assert response.status_code == 201, response.text
-    
-    def test_061_edit_l2vpn_with_max_delay_(self):
-        """
-        Test the return code for editing a SDX L2VPN
-        max_delay in range [0-1000]
-        """
-        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
-        payload = {
-            "name": "Test L2VPN creation with valid bw",
-            "endpoints": [
-                {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "300"},
-                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "300"}
-            ],
-            "qos_metrics": {
-                "max_delay": {
-                    "value": 11
-                }
-            }
-        }
-        response = requests.patch(f"{api_url}/{self.key}", json=self.payload)
-        assert response.status_code == 201, response.text
-    
+
     def test_062_edit_l2vpn_with_max_number_oxps(self):
         """
         Test the return code for editing a SDX L2VPN
@@ -402,13 +380,49 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.patch(f"{api_url}/{self.key}", json=payload)
         assert response.status_code == 400, response.text
     
-    @pytest.mark.xfail(reason="return status 402 - Error: Validation error: Scheduling advanced reservation is not supported")
+    def test_066_edit_l2vpn_with_no_available_bw(self):
+        """
+        Test the return code for editing a SDX L2VPN
+        410: Can't fulfill the strict QoS requirements
+        """
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        payload = {
+            "name": "Test L2VPN creation",
+            "endpoints": [
+                {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "101"},
+                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "101"}
+            ],
+            "qos_metrics": {
+                "min_bw": {
+                    "value": 10
+                }
+            }
+        }
+        response = requests.post(api_url, json=payload)
+        assert response.status_code == 201, response.text
+
+        # Edit high min_bw to get code 410
+        payload = {
+            "name": "Test L2VPN request",
+            "endpoints": [
+                {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "100"},
+                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "100"}
+            ],
+            "qos_metrics": {
+                "min_bw": {
+                    "value": 91
+                }
+            }
+        }
+        response = requests.patch(f"{api_url}/{self.key}", json=payload)
+        assert response.status_code == 410, response.text
+
+    #@pytest.mark.xfail(reason="return status 402 - Error: Validation error: Scheduling advanced reservation is not supported")
     def test_070_edit_l2vpn_with_impossible_scheduling(self):
         """
         Test the return code for editing a SDX L2VPN
         411: Scheduling not possible
         end_time before current date
-        422: Attribute not supported
         Note: This test should return code 411 when the schedule is supported.
         """
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'

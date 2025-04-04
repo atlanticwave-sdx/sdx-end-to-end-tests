@@ -61,6 +61,7 @@ class TestE2ETopology:
                 assert attr in topo, str(topo)
                 assert unordered(topo[attr]) == expected_topos[idx][attr], f"fount {attr}={topo[attr]}"
 
+    #@pytest.mark.xfail(reason="AssertionError: assert 'up' == 'down'")
     def test_020_set_intra_link_down_check_topology(self):
         api_url = SDX_CONTROLLER + '/topology'
         response = requests.get(api_url)
@@ -87,6 +88,7 @@ class TestE2ETopology:
         assert ports[port2]["status"] == "down", str(ports[port2])
         assert links[link1]["status"] == "down", str(links[link1])
 
+    #@pytest.mark.xfail(reason="AssertionError: assert 'up' == 'down'")
     def test_025_set_inter_link_down_check_topology(self):
         """ Set one inter-domain links down and see how SDX controller exports the topology"""
         api_url = SDX_CONTROLLER + '/topology'
