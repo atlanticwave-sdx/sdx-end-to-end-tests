@@ -161,6 +161,6 @@ class TestE2ETopology:
         api_url = SDX_CONTROLLER + '/topology'
         response = requests.get(api_url)
         data = response.json()
-        assert version < float(data["version"]), f"sdx_version={data['version']}"
+        assert version < float(data["version"]), f"sdx_version={data['version']} {oxp_ver1=} {oxp_ver2=}"
 
 
