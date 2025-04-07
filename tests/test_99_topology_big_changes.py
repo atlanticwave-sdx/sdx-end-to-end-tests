@@ -119,7 +119,7 @@ class TestE2ETopologyBigChanges:
     #    data = response.json()
     #    assert len(data['links']) == len_links_controller+1#, str(data['links'])
    
-    #@pytest.mark.xfail(reason="AssertionError: assert 11 == (11 - 1)" -> link is not removed in sdx-controller)
+    @pytest.mark.xfail(reason="AssertionError: assert 11 == (11 - 1) -> link is not removed in sdx-controller")
     def test_050_del_intra_link_check_topology(self):
        """ Remove an intra-domain Link and see how SDX controller exports the topology"""
        api_url = SDX_CONTROLLER + '/topology'

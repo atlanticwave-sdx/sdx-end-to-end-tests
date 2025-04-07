@@ -51,7 +51,7 @@ class TestE2EL2VPN:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
         response_json = response.json()
-        assert response_json.get("status") == "UNDER_PROVISIONING", response_json
+        assert response_json.get("status") == "under provisioning", response_json
         service_id = response_json.get("service_id")
         assert service_id != None, response_json
 
@@ -64,7 +64,7 @@ class TestE2EL2VPN:
         response_json = response.json()
         assert len(response_json) == 1, response_json
         assert service_id in response_json, response_json
-        assert response_json[service_id].get("status") == "UP", response_json
+        assert response_json[service_id].get("status") == "up", response_json
 
         # make sure OXPs have the new EVCs
         ## -> ampath
@@ -108,7 +108,7 @@ class TestE2EL2VPN:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
         response_json = response.json()
-        assert response_json.get("status") == "UNDER_PROVISIONING", response_json
+        assert response_json.get("status") == "under provisioning", response_json
         service_id = response_json.get("service_id")
         assert service_id != None, response_json
 
@@ -121,7 +121,7 @@ class TestE2EL2VPN:
         response_json = response.json()
         assert len(response_json) == 2, response_json
         assert service_id in response_json, response_json
-        assert response_json[service_id].get("status") == "UP", response_json
+        assert response_json[service_id].get("status") == "up", response_json
 
         # make sure OXPs have the new EVCs
         ## -> ampath
@@ -134,7 +134,6 @@ class TestE2EL2VPN:
         response = requests.get("http://tenet:8181/api/kytos/mef_eline/v2/evc/")
         assert len(response.json()) == 2, response.text
 
-    #@pytest.mark.xfail(reason="status: 500")
     def test_040_edit_vlan_l2vpn_successfully(self):
         """Test change the vlan of endpoints of an existing L2vpn connection."""
         
@@ -210,7 +209,6 @@ class TestE2EL2VPN:
                 found += 1
         assert found == 1, evcs
 
-    #@pytest.mark.xfail(reason="status: 500")
     def test_045_edit_port_l2vpn_successfully(self):
         """Test change the port_id of endpoints of an existing L2vpn connection."""
         # wait a few seconds to allow status change from UNDER_PROVISIONG to UP

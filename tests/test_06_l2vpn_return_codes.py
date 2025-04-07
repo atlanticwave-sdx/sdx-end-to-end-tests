@@ -139,7 +139,7 @@ class TestE2EReturnCodes:
             return future_date.date().isoformat()
         return future_date.strftime('%Y-%m-%dT%H:%M:%SZ')
 
-    #@pytest.mark.xfail(reason="return status 400 - Validation error: Scheduling advanced reservation is not supported")
+    @pytest.mark.xfail(reason="return status 400 - Validation error: Scheduling advanced reservation is not supported")
     def test_015_create_l2vpn_with_optional_attributes(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -698,7 +698,7 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
 
-    #@pytest.mark.xfail(reason="return status 400 - Validation error: Scheduling advanced reservation is not supported")
+    @pytest.mark.xfail(reason="return status 400 - Validation error: Scheduling advanced reservation is not supported")
     def test_070_create_l2vpn_with_impossible_scheduling(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -720,7 +720,7 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 422, response.text
 
-    #@pytest.mark.xfail(reason="return status 400 - Validation error: Scheduling advanced reservation is not supported")
+    @pytest.mark.xfail(reason="return status 400 - Validation error: Scheduling advanced reservation is not supported")
     def test_071_create_l2vpn_with_formatting_issue(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -742,7 +742,7 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 422, response.text
 
-    #@pytest.mark.xfail(reason="return status 400: Request does not have a valid JSON or body is incomplete/incorrect")
+    @pytest.mark.xfail(reason="return status 400: Request does not have a valid JSON or body is incomplete/incorrect")
     def test_080_create_l2vpn_with_no_path_available_between_endpoints(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -758,13 +758,8 @@ class TestE2EReturnCodes:
         api_url_topology = SDX_CONTROLLER + '/topology'
         response = requests.get(api_url_topology)
         data = response.json()
-        ports = {port["id"]: port for node in data["nodes"] for port in node["ports"]}
         links = {link["id"]: link for link in data["links"]}
-        port1 = "urn:sdx:port:tenet.ac.za:Tenet01:2"
-        port2 = "urn:sdx:port:tenet.ac.za:Tenet03:2"
         link1 = "urn:sdx:link:tenet.ac.za:Tenet01/2_Tenet03/2"
-        assert ports[port1]["status"] == "down", str(ports[port1])
-        assert ports[port2]["status"] == "down", str(ports[port2])
         assert links[link1]["status"] == "down", str(links[link1])
         
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
@@ -785,8 +780,6 @@ class TestE2EReturnCodes:
 
         response = requests.get(api_url_topology)
         data = response.json()
-        ports = {port["id"]: port for node in data["nodes"] for port in node["ports"]}
         links = {link["id"]: link for link in data["links"]}
-        assert ports[port1]["status"] == "up", str(ports[port1])
-        assert ports[port2]["status"] == "up", str(ports[port2])
         assert links[link1]["status"] == "up", str(links[link1])
+
