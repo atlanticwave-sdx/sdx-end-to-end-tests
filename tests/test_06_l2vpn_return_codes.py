@@ -459,7 +459,7 @@ class TestE2EReturnCodes:
             ],
             "qos_metrics": {
                 "min_bw": {
-                    "value": 91
+                    "value": 3
                 }
             }
         }
