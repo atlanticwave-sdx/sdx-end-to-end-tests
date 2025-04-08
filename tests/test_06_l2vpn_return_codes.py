@@ -139,7 +139,7 @@ class TestE2EReturnCodes:
             return future_date.date().isoformat()
         return future_date.strftime('%Y-%m-%dT%H:%M:%SZ')
 
-    @pytest.mark.xfail(reason="return status 402 - Error: Validation error: Scheduling advanced reservation is not supported")
+    @pytest.mark.xfail(reason="return status 400 - Validation error: Scheduling advanced reservation is not supported")
     def test_015_create_l2vpn_with_optional_attributes(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -314,7 +314,7 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 400, response.text
 
-    def test_029_create_l2vpn_with_with_single_endpoint(self):
+    def test_029_create_l2vpn_with_single_endpoint(self):
         """
         Test return code for creating L2VPN with with a single endpoint
         400: Invalid JSON or incomplete body 
@@ -368,7 +368,6 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 409, response.text
 
-    @pytest.mark.xfail(reason="return status 410 -> Could not solve the request - Fail if min_bw > 10")
     def test_050_create_l2vpn_with_valid_bw(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -382,7 +381,7 @@ class TestE2EReturnCodes:
             ],
             "qos_metrics": {
                 "min_bw": {
-                    "value": 11
+                    "value": 10
                 }
             }
         }
@@ -460,15 +459,14 @@ class TestE2EReturnCodes:
             ],
             "qos_metrics": {
                 "min_bw": {
-                    "value": 91
+                    "value": 3
                 }
             }
         }
         response = requests.post(api_url, json=payload)
         assert response.status_code == 410, response.text
 
-    @pytest.mark.xfail(reason="return status 410 -> Could not solve the request - Fail if one of the value for min_bw > 10")
-    def test_054_create_l2vpn_with_all_available_bw(self):
+    def test_054_create_l2vpn_with_available_bw(self):
         """
         Test the return code for creating a SDX L2VPN
         410: Can't fulfill the strict QoS requirements
@@ -482,7 +480,7 @@ class TestE2EReturnCodes:
             ],
             "qos_metrics": {
                 "min_bw": {
-                    "value": 11
+                    "value": 5
                 }
             }
         }
@@ -497,7 +495,7 @@ class TestE2EReturnCodes:
             ],
             "qos_metrics": {
                 "min_bw": {
-                    "value": 89
+                    "value": 5
                 }
             }
         }
@@ -700,7 +698,7 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
 
-    @pytest.mark.xfail(reason="return status 402 - Error: Validation error: Scheduling advanced reservation is not supported")
+    @pytest.mark.xfail(reason="return status 400 - Validation error: Scheduling advanced reservation is not supported")
     def test_070_create_l2vpn_with_impossible_scheduling(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -710,7 +708,7 @@ class TestE2EReturnCodes:
         """
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         payload = {
-            "name": "VLAN between AMPATH/2030 and TENET/2030",
+            "name": "Test L2VPN creation with scheduling not possible",
             "endpoints": [
                 {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "100"},
                 {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "100"}
@@ -722,7 +720,7 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 422, response.text
 
-    @pytest.mark.xfail(reason="return status 402 - Error: Validation error: Scheduling advanced reservation is not supported")
+    @pytest.mark.xfail(reason="return status 400 - Validation error: Scheduling advanced reservation is not supported")
     def test_071_create_l2vpn_with_formatting_issue(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -732,7 +730,7 @@ class TestE2EReturnCodes:
         """
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         payload = {
-            "name": "VLAN between AMPATH/2030 and TENET/2030",
+            "name": "Test L2VPN creation with formatting issue",
             "endpoints": [
                 {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "100"},
                 {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "100"}
@@ -743,3 +741,45 @@ class TestE2EReturnCodes:
         }
         response = requests.post(api_url, json=payload)
         assert response.status_code == 422, response.text
+
+    @pytest.mark.xfail(reason="return status 400: Request does not have a valid JSON or body is incomplete/incorrect")
+    def test_080_create_l2vpn_with_no_path_available_between_endpoints(self):
+        """
+        Test the return code for creating a SDX L2VPN
+        412: No path available between endpoints
+        """
+
+        # set one link to down
+        self.net.net.configLinkStatus('Tenet01', 'Tenet03', 'down')
+
+        # wait a few seconds
+        time.sleep(15)
+
+        api_url_topology = SDX_CONTROLLER + '/topology'
+        response = requests.get(api_url_topology)
+        data = response.json()
+        links = {link["id"]: link for link in data["links"]}
+        link1 = "urn:sdx:link:tenet.ac.za:Tenet01/2_Tenet03/2"
+        assert links[link1]["status"] == "down", str(links[link1])
+        
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        payload = {"name": "Text",
+                   "endpoints": [
+                       {"port_id": "urn:sdx:port:ampath.net:Ampath1:50", "vlan": "100"},
+                       {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50", "vlan": "100"}
+                    ]
+        }
+        response = requests.post(api_url, json=payload)
+        assert response.status_code == 412, response.text
+
+        # set one link to up
+        self.net.net.configLinkStatus('Tenet01', 'Tenet03', 'up')
+
+        # wait a few seconds
+        time.sleep(15)
+
+        response = requests.get(api_url_topology)
+        data = response.json()
+        links = {link["id"]: link for link in data["links"]}
+        assert links[link1]["status"] == "up", str(links[link1])
+

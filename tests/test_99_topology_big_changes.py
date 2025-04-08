@@ -76,7 +76,7 @@ class TestE2ETopologyBigChanges:
         data = response.json()
         assert len(data["links"]) == len_links_controller+1, str(data['links'])
     
-    #def test_045_add_inter_link_check_topology(self):
+    # def test_045_add_inter_link_check_topology(self):
     #    """ Add an inter-domain Link and see how SDX controller exports the topolog"""
     #    api_url = SDX_CONTROLLER + '/topology'
     #    response = requests.get(api_url)
@@ -118,9 +118,89 @@ class TestE2ETopologyBigChanges:
     #    response = requests.get(api_url)
     #    data = response.json()
     #    assert len(data['links']) == len_links_controller+1#, str(data['links'])
+   
+    @pytest.mark.xfail(reason="AssertionError: assert 11 == (11 - 1) -> link is not removed in sdx-controller")
+    def test_050_del_intra_link_check_topology(self):
+       """ Remove an intra-domain Link and see how SDX controller exports the topology"""
+       api_url = SDX_CONTROLLER + '/topology'
+       response = requests.get(api_url)
+       data = response.json()
+    #    print('--------- 1rt from SDX-C')
+    #    print(data["links"])
+       len_links_controller = len(data['links'])
 
-    # def test_050_del_intra_link_check_topology(self):
-    #    """ Remove an intra-domain Link and see how SDX controller exports the topology"""
+       sdx_api = KYTOS_SDX_API % 'tenet'
+       response = requests.get(f"{sdx_api}/topology/2.0.0")
+       data = response.json()
+       len_links_kytos_sdx_api = len(data["links"])
+    #    print('--------- 1rt from tenet (KYTOS_SDX_API)')
+    #    print(data["links"])
+
+       # Get the link_id (Tenet02-Tenet03 if exists)
+       tenet_api = KYTOS_API % 'tenet'
+       api_url = f'{tenet_api}/topology/v3/links'
+       response = requests.get(api_url)
+       assert response.status_code == 200
+       data = response.json()
+       #print('--------- 1rt from tenet (KYTOS_API)')
+       #print(data["links"])
+       link_id = None
+       for key, value in data['links'].items():
+           link_id = key
+           endpoint_a = value["endpoint_a"]["name"].split('-')[0]
+           endpoint_b = value["endpoint_b"]["name"].split('-')[0]
+           if endpoint_a in ['Tenet01', 'Tenet02'] and endpoint_b in ['Tenet01', 'Tenet02']:
+               break
+       assert link_id
+       
+       # Disabling link
+       self.net.net.configLinkStatus(endpoint_a, endpoint_b, 'down')
+       api_url = f'{tenet_api}/topology/v3/links/{link_id}/disable'
+       response = requests.post(api_url)
+       assert response.status_code == 201, response.text
+
+       # Deleting link
+       api_url = f'{tenet_api}/topology/v3/links/{link_id}'
+       response = requests.delete(api_url)
+       assert response.status_code == 200, response.text
+
+       # Verify absence of link
+       api_url = f'{tenet_api}/topology/v3/links'
+       response = requests.get(api_url)
+       assert response.status_code == 200
+       data = response.json()
+       assert link_id not in data["links"]
+       #print('------ link deleted ---------')
+       #print(link_id)
+       #print('--------- 2nd from tenet (KYTOS_API)')
+       #print(data["links"])
+
+       # give time so that messages are propagated
+       time.sleep(15)
+       
+       # Force to send the topology to the SDX-LC
+       response = requests.post(f"{sdx_api}/topology/2.0.0")
+       assert response.status_code == 200
+       response = requests.get(f"{sdx_api}/topology/2.0.0")
+       assert response.status_code == 200
+       data = response.json()
+    #    print('--------- 2nd from tenet (KYTOS_SDX_API)')
+    #    print(data["links"])
+       assert len(data['links']) == len_links_kytos_sdx_api-1
+
+       # give time so that messages are propagated
+       time.sleep(15)
+    
+       # Verify absence of link with SDX_CONTROLLER
+       api_url = SDX_CONTROLLER + '/topology'
+       response = requests.get(api_url)
+       data = response.json()
+    #    print('--------- 2nd from SDX-C')
+    #    print(data["links"])
+       assert len(data['links']) == len_links_controller-1#, str(data['links'])
+
+    # def test_055_del_inter_link_check_topology(self):
+    #    """ Remove an inter-domain Link and see how SDX controller exports the topology"""
     #    api_url = SDX_CONTROLLER + '/topology'
     #    response = requests.get(api_url)
     #    data = response.json()
@@ -135,7 +215,7 @@ class TestE2ETopologyBigChanges:
     #    #print('--------- 1rt from tenet (KYTOS_SDX_API)')
     #    #print(data["links"])
 
-    #    # Get the link_id (Tenet02-Tenet03 if exists)
+    #    # Get the link_id -> how get an interdomain link_id ?????????
     #    tenet_api = KYTOS_API % 'tenet'
     #    api_url = f'{tenet_api}/topology/v3/links'
     #    response = requests.get(api_url)
@@ -148,7 +228,7 @@ class TestE2ETopologyBigChanges:
     #        link_id = key
     #        endpoint_a = value["endpoint_a"]["name"].split('-')[0]
     #        endpoint_b = value["endpoint_b"]["name"].split('-')[0]
-    #        if endpoint_a in ['Tenet02', 'Tenet03'] and endpoint_b in ['Tenet02', 'Tenet03']:
+    #        if endpoint_a in ['Ampath1', 'Tenet01'] and endpoint_b in ['Ampath1', 'Tenet01']:
     #            break
     #    assert link_id
        
@@ -190,85 +270,6 @@ class TestE2ETopologyBigChanges:
     #    # give time so that messages are propagated
     #    time.sleep(15)
     
-    #    # Verify absence of link with SDX_CONTROLLER
-    #    api_url = SDX_CONTROLLER + '/topology'
-    #    response = requests.get(api_url)
-    #    data = response.json()
-    #    #print('--------- 2nd from SDX-C')
-    #    #print(data["links"])
-    #    assert len(data['links']) == len_links_controller-1#, str(data['links'])
-
-    #def test_055_del_inter_link_check_topology(self):
-    #    """ Remove an inter-domain Link and see how SDX controller exports the topology"""
-    #    api_url = SDX_CONTROLLER + '/topology'
-    #    response = requests.get(api_url)
-    #    data = response.json()
-    #    #print('--------- 1rt from SDX-C')
-    #    #print(data["links"])
-    #    len_links_controller = len(data['links'])
-
-    #    sdx_api = KYTOS_SDX_API % 'tenet'
-    #    response = requests.get(f"{sdx_api}/topology/2.0.0")
-    #    data = response.json()
-    #    len_links_kytos_sdx_api = len(data["links"])
-    #    #print('--------- 1rt from tenet (KYTOS_SDX_API)')
-    #    #print(data["links"])
-
-    #    # Get the link_id -> how get an interdomain link_id ?????????
-    #    tenet_api = KYTOS_API % 'tenet'
-    #    api_url = f'{tenet_api}/topology/v3/links'
-    #    response = requests.get(api_url)
-    #    assert response.status_code == 200
-    #    data = response.json()
-    #    #print('--------- 1rt from tenet (KYTOS_API)')
-    #    #print(data["links"])
-    #    link_id = None
-    #    for key, value in data['links'].items():
-    #        link_id = key
-    #        endpoint_a = value["endpoint_a"]["name"].split('-')[0]
-    #        endpoint_b = value["endpoint_b"]["name"].split('-')[0]
-    #        if endpoint_a in ['Ampath1', 'Tenet01'] and endpoint_b in ['Ampath1', 'Tenet01']:
-    #            break
-    #    assert link_id
-    #    
-    #    # Disabling link
-    #    self.net.net.configLinkStatus(endpoint_a, endpoint_b, 'down')
-    #    api_url = f'{tenet_api}/topology/v3/links/{link_id}/disable'
-    #    response = requests.post(api_url)
-    #    assert response.status_code == 201, response.text
-
-    #    # Deleting link
-    #    api_url = f'{tenet_api}/topology/v3/links/{link_id}'
-    #    response = requests.delete(api_url)
-    #    assert response.status_code == 200, response.text
-
-    #    # Verify absence of link
-    #    api_url = f'{tenet_api}/topology/v3/links'
-    #    response = requests.get(api_url)
-    #    assert response.status_code == 200
-    #    data = response.json()
-    #    assert link_id not in data["links"]
-    #    #print('------ link deleted ---------')
-    #    #print(link_id)
-    #    #print('--------- 2nd from tenet (KYTOS_API)')
-    #    #print(data["links"])
-
-    #    # give time so that messages are propagated
-    #    time.sleep(15)
-    #    
-    #    # Force to send the topology to the SDX-LC
-    #    response = requests.post(f"{sdx_api}/topology/2.0.0")
-    #    assert response.status_code == 200
-    #    response = requests.get(f"{sdx_api}/topology/2.0.0")
-    #    assert response.status_code == 200
-    #    data = response.json()
-    #    #print('--------- 2nd from tenet (KYTOS_SDX_API)')
-    #    #print(data["links"])
-    #    assert len(data['links']) == len_links_kytos_sdx_api-1
-
-    #    # give time so that messages are propagated
-    #    time.sleep(15)
-    #
     #    # Verify absence of link with SDX_CONTROLLER
     #    api_url = SDX_CONTROLLER + '/topology'
     #    response = requests.get(api_url)
@@ -341,7 +342,7 @@ class TestE2ETopologyBigChanges:
     #     data = response.json()
     #     assert len(data["nodes"]) == len_nodes_controller+1, str(data['nodes'])
 
-    #def test_065_del_node_check_topology(self):
+    # def test_065_del_node_check_topology(self):
     #    """ Remove a switch and see how SDX controller exports the topology"""
     #    api_url = SDX_CONTROLLER + '/topology'
     #    response = requests.get(api_url)
@@ -388,14 +389,14 @@ class TestE2ETopologyBigChanges:
     #        api_url = f'{ampath_api}/topology/v3/links/{link}/disable'
     #        response = requests.post(api_url)
     #        assert response.status_code == 201, response.text
-    #
+    
     #        # Deleting links
     #        api_url = f'{ampath_api}/topology/v3/links/{link}'
     #        response = requests.delete(api_url)
     #        assert response.status_code == 200, response.text
 
     #    time.sleep(10)
-    #    
+       
     #    # Delete switch
     #    api_url = f'{ampath_api}/topology/v3/switches/{switch}'
     #    response = requests.delete(api_url)
@@ -403,7 +404,7 @@ class TestE2ETopologyBigChanges:
 
     #    # give time so that messages are propagated
     #    time.sleep(15)
-    #    
+       
     #    # Force to send the topology to the SDX-LC
     #    response = requests.post(f"{sdx_api}/topology/2.0.0")
     #    assert response.status_code == 200
@@ -414,7 +415,7 @@ class TestE2ETopologyBigChanges:
 
     #    # give time so that messages are propagated
     #    time.sleep(15)
-    #
+    
     #    # Verify absence of link with SDX_CONTROLLER
     #    api_url = SDX_CONTROLLER + '/topology'
     #    response = requests.get(api_url)
@@ -463,7 +464,7 @@ class TestE2ETopologyBigChanges:
         ports = {port["id"]: port for node in data["nodes"] for port in node["ports"]}
         assert len(ports) == len_ports_controller+2, str(ports)
 
-    #def test_075_del_port_check_topology(self):
+    # def test_075_del_port_check_topology(self):
     #    """ Remove a Port (link between a nodes) and see how SDX controller exports the topology"""
     #    api_url = SDX_CONTROLLER + '/topology'
     #    response = requests.get(api_url)
@@ -477,7 +478,7 @@ class TestE2ETopologyBigChanges:
     #    data = response.json()['nodes']
     #    ports = {port['name'] for node in data for port in node['ports']}
     #    len_ports = len(ports)
-    #
+    
     #    # Get the link_id 
     #    ampath_api = KYTOS_API % 'ampath'       
     #    api_url = f'{ampath_api}/topology/v3/links'
@@ -492,7 +493,7 @@ class TestE2ETopologyBigChanges:
     #        if endpoint_a in ['Ampath5', 'h10'] and endpoint_b in ['Ampath5', 'h10']:
     #            break
     #    assert link_id
-    #    
+       
     #    # Disabling link
     #    self.net.net.configLinkStatus(endpoint_a, endpoint_b, 'down')
     #    api_url = f'{ampath_api}/topology/v3/links/{link_id}/disable'
@@ -513,7 +514,7 @@ class TestE2ETopologyBigChanges:
 
     #    # give time so that messages are propagated
     #    time.sleep(15)
-    #    
+       
     #    # Force to send the topology to the SDX-LC
     #    response = requests.post(f"{sdx_api}/topology/2.0.0")
     #    assert response.status_code == 200
@@ -522,7 +523,7 @@ class TestE2ETopologyBigChanges:
 
     #    # give time so that messages are propagated
     #    time.sleep(15)
-    #
+    
     #    sdx_api = KYTOS_SDX_API % 'ampath'
     #    response = requests.get(f"{sdx_api}/topology/2.0.0")
     #    assert response.status_code == 200
