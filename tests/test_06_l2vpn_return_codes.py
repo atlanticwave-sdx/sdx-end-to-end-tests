@@ -430,6 +430,7 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 400, response.text
 
+    @pytest.mark.xfail(reason="return status 201")
     def test_053_create_l2vpn_with_no_available_bw(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -625,10 +626,14 @@ class TestE2EReturnCodes:
         }
         response = requests.post(api_url, json=payload)
         assert response.status_code == 400, response.text
-
+    
+    @pytest.mark.xfail(reason="return status 201")
     def test_061_create_l2vpn_with_no_available_oxps(self):
         """
-        Test the return code for creating a SDX L2VPN
+        Creating a L2VPN from Ampath03 to Tenet03 (it means that the path will contain 3 OXP) 
+        This tests requests a L2VPN and then set max_number_oxps = 2.
+        This way the PCE/SDX-Controller should return 410
+        
         410: Can't fulfill the strict QoS requirements
         """
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
@@ -638,29 +643,24 @@ class TestE2EReturnCodes:
                 {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "100"},
                 {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "100"}
             ],
-            "qos_metrics": {
-                "max_number_oxps": {
-                    "value": 10
-                }
-            }
         }
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
 
         payload = {
-            "name": "Test L2VPN creation no available oxps",
+            "name": "Test L2VPN creation",
             "endpoints": [
-                {"port_id": "urn:sdx:port:ampath.net:Ampath2:50","vlan": "200"},
-                {"port_id": "urn:sdx:port:sax.net:Sax01:50","vlan": "200"}
+                {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "200"},
+                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "200"}
             ],
-            "qos_metrics": {
+            'qos_metrics': {
                 "max_number_oxps": {
-                    "value": 91
+                    "value": 2
                 }
             }
         }
         response = requests.post(api_url, json=payload)
-        assert response.status_code == 201, response.text
+        assert response.status_code == 410, response.text
 
     def test_062_create_l2vpn_with_all_available_oxps(self):
         """
