@@ -446,7 +446,7 @@ class TestE2EReturnCodes:
                 "min_bw": {
                     "value": 10
                 }
-            }
+             }
         }
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
@@ -505,10 +505,8 @@ class TestE2EReturnCodes:
         response = requests.get(api_url)
         assert response.status_code == 200, response.text
         response_json = response.json()
-        paths = {}
-        for i, response in enumerate(response_json.values()):
-            paths[i] = [epoint['port_id'] for epoint in response['current_path']]
-        assert paths.get(0) != paths.get(1)
+        data = list(response_json.values())
+        assert data[0]['current_path'] != data[1]['current_path']
 
         payload = {
             "name": "Test L2VPN creation no available bw",
@@ -518,7 +516,7 @@ class TestE2EReturnCodes:
             ],
             "qos_metrics": {
                 "min_bw": {
-                    "value": 8
+                    "value": 10
                 }
             }
         }
