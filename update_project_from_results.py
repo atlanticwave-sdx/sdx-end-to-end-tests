@@ -5,9 +5,7 @@ from datetime import datetime
 
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 GITHUB_ORG = os.environ.get("GITHUB_ORG")
-GITHUB_PROJECT_NUMBER = os.environ.get("GITHUB_PROJECT_NUMBER")
-if GITHUB_PROJECT_NUMBER is not None:
-    GITHUB_PROJECT_NUMBER = int(GITHUB_PROJECT_NUMBER)
+GITHUB_PROJECT_NUMBER = int(os.environ.get("GITHUB_PROJECT_NUMBER", "0"))
 
 GRAPHQL_URL = "https://api.github.com/graphql"
 HEADERS = {
@@ -73,6 +71,24 @@ def get_project_info_and_items():
                       }
                     }
                   }
+                  ... on ProjectV2ItemFieldNumberValue {
+                    number
+                    field {
+                        ... on ProjectV2FieldCommon {
+                        id
+                        name
+                      }
+                    }
+                  }
+                  ... on ProjectV2ItemFieldDateValue {
+                    date
+                    field {
+                      ... on ProjectV2FieldCommon {
+                        id
+                        name
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -98,10 +114,29 @@ def update_project_field(project_id, item_id, field_id, value):
             "projectId": project_id,
             "itemId": item_id,
             "fieldId": field_id,
-            "value": {"text": value}
+            "value": {"text": str(value)}
         }
     }
-    print(f"Updating text field {field_id} on item {item_id} to: {value}")
+    graphql(mutation, variables)
+
+def update_number_field(project_id, item_id, field_id, value):
+    mutation = """
+    mutation($input: UpdateProjectV2ItemFieldValueInput!) {
+      updateProjectV2ItemFieldValue(input: $input) {
+        projectV2Item {
+          id
+        }
+      }
+    }
+    """
+    variables = {
+        "input": {
+            "projectId": project_id,
+            "itemId": item_id,
+            "fieldId": field_id,
+            "value": {"number": value}
+        }
+    }
     graphql(mutation, variables)
 
 def update_single_select(project_id, item_id, field_id, option_id):
@@ -122,12 +157,7 @@ def update_single_select(project_id, item_id, field_id, option_id):
             "value": {"singleSelectOptionId": option_id}
         }
     }
-    print(f"Updating select field {field_id} on item {item_id} to option: {option_id}")
     graphql(mutation, variables)
-
-def update_with_tracking(project_id, item_id, field_ids):
-    now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
-    update_project_field(project_id, item_id, field_ids["date"], now)
 
 def parse_results(xml_file):
     tree = ET.parse(xml_file)
@@ -180,7 +210,11 @@ def main():
             field = field_value.get("field", {})
             field_name = field.get("name")
             field_id = field.get("id")
-            text = field_value.get("text") or field_value.get("name")
+            text = (
+                field_value.get("text")
+                or field_value.get("name")
+                or field_value.get("number")  # This allows reading number fields
+            )
             if field_name and field_id:
                 field_ids[field_name] = field_id
                 field_values[field_name] = text
@@ -190,7 +224,12 @@ def main():
             item_map[test_name] = item
             field_values_by_item[item["id"]] = field_values
 
+    print("\nAvailable project fields:")
+    for name, fid in field_ids.items():
+        print(f"  {name}: {fid}")
+
     results = parse_results("e2e-output/results.xml")
+    now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
 
     for result in results:
         name = result["name"]
@@ -204,33 +243,42 @@ def main():
         current_fields = field_values_by_item.get(item_id, {})
         old_status = current_fields.get("current", "Other")
 
+        # Update select fields if changed
         if old_status != status:
-            print(f"COMPARE: name = {name} | current = {old_status} | result = {status}")
-            update_single_select(
-                project_id, item_id,
-                field_ids["previous"],
-                SINGLE_SELECT_IDS["previous"].get(old_status, SINGLE_SELECT_IDS["previous"]["Other"])
-            )
-            update_single_select(
-                project_id, item_id,
-                field_ids["current"],
-                SINGLE_SELECT_IDS["current"].get(status, SINGLE_SELECT_IDS["current"]["Other"])
-            )
-            update_with_tracking(project_id, item_id, field_ids)
+            print(f"UPDATE: {name} | {old_status} → {status}")
+            update_single_select(project_id, item_id, field_ids["previous"],
+                                 SINGLE_SELECT_IDS["previous"].get(old_status, SINGLE_SELECT_IDS["previous"]["Other"]))
+            update_single_select(project_id, item_id, field_ids["current"],
+                                 SINGLE_SELECT_IDS["current"].get(status, SINGLE_SELECT_IDS["current"]["Other"]))
 
+            if status == "Pass":
+                update_project_field(project_id, item_id, field_ids.get("lastpass"), now)
+                try:
+                    count = int(current_fields.get("passes", 0)) + 1
+                except:
+                    count = 1
+                update_number_field(project_id, item_id, field_ids.get("passes"), count)
+
+            elif status == "Fail":
+                update_project_field(project_id, item_id, field_ids.get("lastfail"), now)
+                try:
+                    count = int(current_fields.get("fails", 0)) + 1
+                except:
+                    count = 1
+                update_number_field(project_id, item_id, field_ids.get("fails"), count)
+
+        # Update reason field if changed
         output = (
             f"Status: {status}\n"
             f"File: {result['classname'].replace('.', '/')}.py\n"
-            f"name: {name}\n"
+            f"Name: {name}\n"
             f"Duration: {result['time']:.2f}s\n"
         )
         if result["message"]:
             output += f"\nMessage:\n{result['message']}"
 
         if current_fields.get("reason") != output:
-            print(f"Updating reason for {name}")
-            update_project_field(project_id, item_id, field_ids["reason"], output)
-            update_with_tracking(project_id, item_id, field_ids)
+            update_project_field(project_id, item_id, field_ids.get("reason"), output)
 
 if __name__ == "__main__":
     main()
