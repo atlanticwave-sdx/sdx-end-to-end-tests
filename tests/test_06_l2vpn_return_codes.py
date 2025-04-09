@@ -430,8 +430,43 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 400, response.text
 
-    @pytest.mark.xfail(reason="return status 201")
     def test_053_create_l2vpn_with_no_available_bw(self):
+        """
+        Test the return code for creating a SDX L2VPN
+        410: Can't fulfill the strict QoS requirements
+        """
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        payload = {
+            "name": "Test L2VPN creation",
+            "endpoints": [
+                {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "100"},
+                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "100"}
+            ],
+            "qos_metrics": {
+                "min_bw": {
+                    "value": 10
+                }
+            }
+        }
+        response = requests.post(api_url, json=payload)
+        assert response.status_code == 201, response.text
+
+        payload = {
+            "name": "Test L2VPN creation",
+            "endpoints": [
+                {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "200"},
+                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "200"}
+            ],
+            "qos_metrics": {
+                "min_bw": {
+                    "value": 3
+                }
+            }
+        }
+        response = requests.post(api_url, json=payload)
+        assert response.status_code == 410, response.text
+
+    def test_053_create_l2vpn_with_no_available_bw_diff_paths(self):
         """
         Test the return code for creating a SDX L2VPN
         410: Can't fulfill the strict QoS requirements
@@ -461,6 +496,29 @@ class TestE2EReturnCodes:
             "qos_metrics": {
                 "min_bw": {
                     "value": 3
+                }
+            }
+        }
+        response = requests.post(api_url, json=payload)
+        assert response.status_code == 201, response.text
+
+        response = requests.get(api_url)
+        assert response.status_code == 200, response.text
+        response_json = response.json()
+        paths = {}
+        for i, response in enumerate(response_json.values()):
+            paths[i] = [epoint['port_id'] for epoint in response['current_path']]
+        assert paths.get(0) != paths.get(1)
+
+        payload = {
+            "name": "Test L2VPN creation no available bw",
+            "endpoints": [
+                {"port_id": "urn:sdx:port:ampath.net:Ampath2:50","vlan": "300"},
+                {"port_id": "urn:sdx:port:sax.net:Sax01:50","vlan": "300"}
+            ],
+            "qos_metrics": {
+                "min_bw": {
+                    "value": 8
                 }
             }
         }
