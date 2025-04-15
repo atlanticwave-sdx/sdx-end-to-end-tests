@@ -1,7 +1,7 @@
 services:
   mongo:
     image: mongo:7.0
-    pull_policy: missing
+    pull_policy: always
     env_file:
       - .env
     healthcheck:
@@ -11,7 +11,7 @@ services:
       retries: 60
   mq1:
     image: rabbitmq:latest
-    pull_policy: missing
+    pull_policy: always
     env_file:
       - .env
     healthcheck:
@@ -21,7 +21,7 @@ services:
       retries: 60
   ampath:
     image: amlight/kytos-sdx:latest
-    pull_policy: missing
+    pull_policy: always
     env_file:
       - .env
     volumes:
@@ -42,7 +42,7 @@ services:
         tail -f /dev/null
   sax:
     image: amlight/kytos-sdx:latest
-    pull_policy: missing
+    pull_policy: always
     env_file:
       - .env
     volumes:
@@ -63,7 +63,7 @@ services:
         tail -f /dev/null
   tenet:
     image: amlight/kytos-sdx:latest
-    pull_policy: missing
+    pull_policy: always
     env_file:
       - .env
     volumes:
@@ -84,7 +84,7 @@ services:
         tail -f /dev/null
   ampath-lc:
     image: awsdx/sdx-lc:latest
-    pull_policy: missing
+    pull_policy: always
     env_file:
       - .env
     volumes:
@@ -107,7 +107,7 @@ services:
     command: [""]
   sax-lc:
     image: awsdx/sdx-lc:latest
-    pull_policy: missing
+    pull_policy: always
     env_file:
       - .env
     volumes:
@@ -130,7 +130,7 @@ services:
     command: [""]
   tenet-lc:
     image: awsdx/sdx-lc:latest
-    pull_policy: missing
+    pull_policy: always
     env_file:
       - .env
     volumes:
@@ -177,7 +177,7 @@ services:
     command: [""]
   mininet:
     image: italovalcy/mininet:latest
-    pull_policy: missing
+    pull_policy: always
     privileged: true
     volumes:
       - .:/sdx-end-to-end-tests
