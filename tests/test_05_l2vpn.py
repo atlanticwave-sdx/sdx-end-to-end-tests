@@ -335,6 +335,9 @@ class TestE2EL2VPN:
         h8.cmd('ip link set up vlan102')
         h8.cmd('ip addr add 10.1.3.8/24 dev vlan102')
 
+        # wait a few seconds to allow OXPs to deploy the L2VPNs
+        time.sleep(10)
+
         # test connectivity
         result_100 = h1.cmd('ping -c4 10.1.1.8')
         result_101 = h1.cmd('ping -c4 10.1.2.8')
@@ -364,5 +367,5 @@ class TestE2EL2VPN:
         assert ', 0% packet loss,' in result_102
 
         assert ', 0% packet loss,' in result_100_2
-        #assert ', 0% packet loss,' in result_101_2
-        #assert ', 0% packet loss,' in result_102_2
+        assert ', 0% packet loss,' in result_101_2
+        assert ', 0% packet loss,' in result_102_2
