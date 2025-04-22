@@ -436,6 +436,48 @@ class TestE2EReturnCodes:
         Test the return code for creating a SDX L2VPN
         410: Can't fulfill the strict QoS requirements
         """
+        ### first let's make sure the topology is consistent
+        api_url_topology = SDX_CONTROLLER + '/topology'
+        topology = requests.get(api_url_topology).json()
+        for link in topology["links"]:
+            assert int(link["residual_bandwidth"]) == 100, str(link)
+
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        payload = {
+            "name": "Test L2VPN creation",
+            "endpoints": [
+                {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "100"},
+                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "100"}
+            ],
+            "qos_metrics": {
+                "min_bw": {
+                    "value": 9
+                }
+            }
+        }
+        response = requests.post(api_url, json=payload)
+        assert response.status_code == 201, response.text
+
+        payload = {
+            "name": "Test L2VPN creation available bw",
+            "endpoints": [
+                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet01:50","vlan": "200"},
+                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "200"}
+            ],
+            "qos_metrics": {
+                "min_bw": {
+                    "value": 2
+                }
+            }
+        }
+        response = requests.post(api_url, json=payload)
+        assert response.status_code == 410, response.text
+
+    def test_054_create_l2vpn_with_available_bw(self):
+        """
+        Test the return code for creating a SDX L2VPN
+        410: Can't fulfill the strict QoS requirements
+        """
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         payload = {
             "name": "Test L2VPN creation",
@@ -461,42 +503,6 @@ class TestE2EReturnCodes:
             "qos_metrics": {
                 "min_bw": {
                     "value": 3
-                }
-            }
-        }
-        response = requests.post(api_url, json=payload)
-        assert response.status_code == 410, response.text
-
-    def test_054_create_l2vpn_with_available_bw(self):
-        """
-        Test the return code for creating a SDX L2VPN
-        410: Can't fulfill the strict QoS requirements
-        """
-        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
-        payload = {
-            "name": "Test L2VPN creation",
-            "endpoints": [
-                {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "100"},
-                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "100"}
-            ],
-            "qos_metrics": {
-                "min_bw": {
-                    "value": 5
-                }
-            }
-        }
-        response = requests.post(api_url, json=payload)
-        assert response.status_code == 201, response.text
-
-        payload = {
-            "name": "Test L2VPN creation no available bw",
-            "endpoints": [
-                {"port_id": "urn:sdx:port:ampath.net:Ampath2:50","vlan": "200"},
-                {"port_id": "urn:sdx:port:sax.net:Sax01:50","vlan": "200"}
-            ],
-            "qos_metrics": {
-                "min_bw": {
-                    "value": 5
                 }
             }
         }

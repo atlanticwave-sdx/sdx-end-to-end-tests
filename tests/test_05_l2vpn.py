@@ -3,6 +3,7 @@ import re
 import time
 from datetime import datetime, timedelta
 import uuid
+import random
 
 import pytest
 from random import randrange
@@ -24,6 +25,10 @@ class TestE2EL2VPN:
     @classmethod
     def teardown_class(cls):
         cls.net.stop()
+
+    @classmethod
+    def setup_method(cls):
+        cls.net.config_all_links_up()
 
     def test_010_list_l2vpn_empty(self):
         """Test if list all L2VPNs return empty."""
@@ -364,5 +369,135 @@ class TestE2EL2VPN:
         assert ', 0% packet loss,' in result_102
 
         assert ', 0% packet loss,' in result_100_2
-        #assert ', 0% packet loss,' in result_101_2
-        #assert ', 0% packet loss,' in result_102_2
+        assert ', 0% packet loss,' in result_101_2
+        assert ', 0% packet loss,' in result_102_2
+
+    @pytest.mark.xfail(reason="https://github.com/atlanticwave-sdx/sdx-controller/issues/448")
+    def test_070_multiple_l2vpn_with_bandwidth_qos_metric(self):
+        """
+        Test the creation of multiple L2VPNs with Bandwidth QoS Metrics
+        in a way that will consume all possible residual bandwidth, then
+        check if new L2VPNs with BW requirements wont be accepted, check if
+        new L2VPNs without BW requirements will be acesspted and finally
+        run connectivity tests on the provisioned L2VPNs
+        """
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        base_vlan = 300
+        count = 0
+        request_pairs = [
+            ("ampath.net:Ampath3:50",  "tenet.ac.za:Tenet01:50"),
+            ("ampath.net:Ampath3:50",  "tenet.ac.za:Tenet01:50"),
+            ("ampath.net:Ampath1:50",  "ampath.net:Ampath2:50"),
+            ("sax.net:Sax01:50",       "sax.net:Sax02:50"),
+            ("tenet.ac.za:Tenet01:50", "tenet.ac.za:Tenet03:50"),
+        ]
+        uni2host = {
+            "ampath.net:Ampath1:50": "h1",
+            "ampath.net:Ampath2:50": "h2",
+            "ampath.net:Ampath3:50": "h3",
+            "sax.net:Sax01:50": "h4",
+            "sax.net:Sax02:50": "h5",
+            "tenet.ac.za:Tenet01:50": "h6",
+            "tenet.ac.za:Tenet02:50": "h7",
+            "tenet.ac.za:Tenet03:50": "h8",
+        }
+        # first of all: make sure we have a clean environment
+        data = requests.get(api_url).json()
+        for l2vpn in data.keys():
+            requests.delete(f"{api_url}/{l2vpn}")
+
+        # wait until all L2VPNs are removed
+        for i in range(30):
+            data = requests.get(api_url).json()
+            if len(data) == 0:
+                break
+            time.sleep(2)
+        else:
+            assert False, f"Timeout waiting for L2VPN removal. {data=}"
+
+        # give a few seconds so that SDX-Controller can update link properties
+        time.sleep(10)
+
+        # case 1: first we make requests that will consume 90% of the link capacity
+        for unia, uniz in request_pairs:
+            vlan_id = base_vlan + count
+            payload = {"name": f"VLAN--{vlan_id}--{unia}--{uniz}",
+                "endpoints": [
+                    {"port_id": f"urn:sdx:port:{unia}", "vlan": str(vlan_id)},
+                    {"port_id": f"urn:sdx:port:{uniz}", "vlan": str(vlan_id)}
+                ],
+                "qos_metrics": {"min_bw": {"value": 9}},
+            }
+            response = requests.post(api_url, json=payload)
+            assert response.status_code == 201, f"{payload=} {response.text=}"
+            count += 1
+
+        # case 2: then we make requests that will consume the remaining 10% of the link BW
+        for unia, uniz in request_pairs:
+            vlan_id = base_vlan + count
+            payload = {"name": f"VLAN--{vlan_id}--{unia}--{uniz}",
+                "endpoints": [
+                    {"port_id": f"urn:sdx:port:{unia}", "vlan": str(vlan_id)},
+                    {"port_id": f"urn:sdx:port:{uniz}", "vlan": str(vlan_id)}
+                ],
+                "qos_metrics": {"min_bw": {"value": 1}},
+            }
+            response = requests.post(api_url, json=payload)
+            assert response.status_code == 201, f"{payload=} {response.text=}"
+            count += 1
+
+        # case 3: now all requests, no matter how much BW we request, should fail
+        for unia, uniz in request_pairs:
+            vlan_id = base_vlan + count
+            payload = {"name": f"VLAN--{vlan_id}--{unia}--{uniz}",
+                "endpoints": [
+                    {"port_id": f"urn:sdx:port:{unia}", "vlan": str(vlan_id)},
+                    {"port_id": f"urn:sdx:port:{uniz}", "vlan": str(vlan_id)}
+                ],
+                "qos_metrics": {"min_bw": {"value": random.randint(1,10)}},
+            }
+            response = requests.post(api_url, json=payload)
+            assert response.status_code == 410, f"{payload=} {response.text=}"
+
+        # case 4: on the other hand, requests without BW requirements should be okay
+        for unia, uniz in request_pairs:
+            vlan_id = base_vlan + count
+            payload = {"name": f"VLAN--{vlan_id}--{unia}--{uniz}",
+                "endpoints": [
+                    {"port_id": f"urn:sdx:port:{unia}", "vlan": str(vlan_id)},
+                    {"port_id": f"urn:sdx:port:{uniz}", "vlan": str(vlan_id)}
+                ],
+            }
+            response = requests.post(api_url, json=payload)
+            assert response.status_code == 201, f"{payload=} {response.text=}"
+            count += 1
+
+        # wait for all L2VPNs to be UP
+        for i in range(30):
+            data = requests.get(api_url).json()
+            if all([l2vpn["status"] == "up" for l2vpn in data.values()]):
+                break
+            time.sleep(3)
+        else:
+            assert False, f"Timeout waiting for L2VPN converge. {data=}"
+
+        # wait a couple of seconds to SDX-Controller propagate changes
+        time.sleep(10)
+
+        vlan_inc = 0
+        for unia, uniz in request_pairs:
+            for i in range(3):  # 3 success cases to test
+                vlan_id = base_vlan + vlan_inc + i*len(request_pairs)
+                hostA, hostZ = self.net.net.get(uni2host[unia], uni2host[uniz])
+                hostA.cmd(f"ip link add link {hostA.intfNames()[0]} name vlan{vlan_id} type vlan id {vlan_id}")
+                hostA.cmd(f"ip link set up vlan{vlan_id}")
+                hostA.cmd(f"ip addr add 2001:db8:ffff:{vlan_id}::1/64 dev vlan{vlan_id}")
+                hostZ.cmd(f"ip link add link {hostZ.intfNames()[0]} name vlan{vlan_id} type vlan id {vlan_id}")
+                hostZ.cmd(f"ip link set up vlan{vlan_id}")
+                hostZ.cmd(f"ip addr add 2001:db8:ffff:{vlan_id}::2/64 dev vlan{vlan_id}")
+                # run first ping just to learn mac
+                hostA.cmd(f"ping6 -c1 2001:db8:ffff:{vlan_id}::2 2>&1 >/dev/null")
+                # now run ping and collect results
+                ping_result = hostA.cmd(f"ping6 -c4 -i0.2 2001:db8:ffff:{vlan_id}::2")
+                assert ', 0% packet loss,' in ping_result, f"{vlan_id=} {dataA=} {dataZ=} {ping_result=}"
+            vlan_inc += 1

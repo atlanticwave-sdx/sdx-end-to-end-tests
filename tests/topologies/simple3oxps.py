@@ -193,13 +193,16 @@ def setup_topo(ampath_ctrl, sax_ctrl, tenet_ctrl):
             assert 200 <= response.status_code < 300, response.text
 
     # give enough time for Kytos to process topology events
-    time.sleep(60)
+    time.sleep(10)
 
     # send topology to SDX-LC
     for oxp_ctrl in [ampath_ctrl, sax_ctrl, tenet_ctrl]:
         sdx_api = KYTOS_SDX_API % oxp_ctrl
         response = requests.post(f"{sdx_api}/topology/2.0.0")
         assert response.ok, response.text
+
+    # give enough time for SDX-Controller to process topology events
+    time.sleep(5)
 
     return True
 

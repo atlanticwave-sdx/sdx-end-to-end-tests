@@ -22,6 +22,7 @@ class TestE2ETopologyBigChanges:
     def setup_class(cls):
         cls.net = NetworkTest(["ampath", "sax", "tenet"])
         cls.net.wait_switches_connect()
+        cls.net.run_setup_topo()
 
     @classmethod
     def teardown_class(cls):
