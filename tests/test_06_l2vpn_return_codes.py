@@ -139,7 +139,6 @@ class TestE2EReturnCodes:
             return future_date.date().isoformat()
         return future_date.strftime('%Y-%m-%dT%H:%M:%SZ')
 
-    @pytest.mark.xfail(reason="return status 400 - Validation error: Scheduling advanced reservation is not supported")
     def test_015_create_l2vpn_with_optional_attributes(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -430,8 +429,49 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 400, response.text
 
-    @pytest.mark.xfail(reason="return status 201")
     def test_053_create_l2vpn_with_no_available_bw(self):
+        """
+        Test the return code for creating a SDX L2VPN
+        410: Can't fulfill the strict QoS requirements
+        """
+        ### first let's make sure the topology is consistent
+        api_url_topology = SDX_CONTROLLER + '/topology'
+        topology = requests.get(api_url_topology).json()
+        for link in topology["links"]:
+            assert int(link["residual_bandwidth"]) == 100, str(link)
+
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        payload = {
+            "name": "Test L2VPN creation",
+            "endpoints": [
+                {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "100"},
+                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "100"}
+            ],
+            "qos_metrics": {
+                "min_bw": {
+                    "value": 9
+                }
+            }
+        }
+        response = requests.post(api_url, json=payload)
+        assert response.status_code == 201, response.text
+
+        payload = {
+            "name": "Test L2VPN creation available bw",
+            "endpoints": [
+                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet01:50","vlan": "200"},
+                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "200"}
+            ],
+            "qos_metrics": {
+                "min_bw": {
+                    "value": 2
+                }
+            }
+        }
+        response = requests.post(api_url, json=payload)
+        assert response.status_code == 410, response.text
+
+    def test_054_create_l2vpn_with_available_bw(self):
         """
         Test the return code for creating a SDX L2VPN
         410: Can't fulfill the strict QoS requirements
@@ -461,42 +501,6 @@ class TestE2EReturnCodes:
             "qos_metrics": {
                 "min_bw": {
                     "value": 3
-                }
-            }
-        }
-        response = requests.post(api_url, json=payload)
-        assert response.status_code == 410, response.text
-
-    def test_054_create_l2vpn_with_available_bw(self):
-        """
-        Test the return code for creating a SDX L2VPN
-        410: Can't fulfill the strict QoS requirements
-        """
-        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
-        payload = {
-            "name": "Test L2VPN creation",
-            "endpoints": [
-                {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "100"},
-                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "100"}
-            ],
-            "qos_metrics": {
-                "min_bw": {
-                    "value": 5
-                }
-            }
-        }
-        response = requests.post(api_url, json=payload)
-        assert response.status_code == 201, response.text
-
-        payload = {
-            "name": "Test L2VPN creation no available bw",
-            "endpoints": [
-                {"port_id": "urn:sdx:port:ampath.net:Ampath2:50","vlan": "200"},
-                {"port_id": "urn:sdx:port:sax.net:Sax01:50","vlan": "200"}
-            ],
-            "qos_metrics": {
-                "min_bw": {
-                    "value": 5
                 }
             }
         }
@@ -698,7 +702,6 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
 
-    @pytest.mark.xfail(reason="return status 400 - Validation error: Scheduling advanced reservation is not supported")
     def test_070_create_l2vpn_with_impossible_scheduling(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -720,7 +723,6 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 422, response.text
 
-    @pytest.mark.xfail(reason="return status 400 - Validation error: Scheduling advanced reservation is not supported")
     def test_071_create_l2vpn_with_formatting_issue(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -742,7 +744,6 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 422, response.text
 
-    @pytest.mark.xfail(reason="return status 400: Request does not have a valid JSON or body is incomplete/incorrect")
     def test_080_create_l2vpn_with_no_path_available_between_endpoints(self):
         """
         Test the return code for creating a SDX L2VPN

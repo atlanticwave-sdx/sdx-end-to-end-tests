@@ -45,12 +45,15 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.post(api_url, json=cls.payload)
         assert response.status_code == 201, response.text
 
-        # wait a few seconds so that status changes for UNDER_PROVISIONING to UP
-        time.sleep(5)
-
-        response = requests.get(api_url)
-        data = response.json()
-        cls.key = list(data.keys())[0]
+        # wait until status changes for UNDER_PROVISIONING to UP
+        for i in range(30):
+            data = requests.get(api_url).json()
+            cls.key = next(iter(data))
+            if data[cls.key]["status"] == "up":
+                break
+            time.sleep(2)
+        else:
+            assert False, f"Timeout waiting for L2VPN to become up: {data=}"
 
     def test_010_edit_l2vpn_vlan(self):
         """
@@ -254,7 +257,6 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.patch(f"{api_url}/{self.key}", json=self.payload)
         assert response.status_code == 409, response.text
 
-    @pytest.mark.xfail(reason="status: 500")
     def test_060_edit_l2vpn_with_min_bw(self):
         """
         Test the return code for editing a SDX L2VPN
@@ -421,7 +423,6 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.patch(f"{api_url}/{self.key}", json=payload)
         assert response.status_code == 410, response.text
 
-    @pytest.mark.xfail(reason="status: 500")
     def test_070_edit_l2vpn_with_impossible_scheduling(self):
         """
         Test the return code for editing a SDX L2VPN

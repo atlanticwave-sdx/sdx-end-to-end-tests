@@ -22,6 +22,7 @@ class TestE2ETopologyBigChanges:
     def setup_class(cls):
         cls.net = NetworkTest(["ampath", "sax", "tenet"])
         cls.net.wait_switches_connect()
+        cls.net.run_setup_topo()
 
     @classmethod
     def teardown_class(cls):
@@ -119,22 +120,17 @@ class TestE2ETopologyBigChanges:
     #    data = response.json()
     #    assert len(data['links']) == len_links_controller+1#, str(data['links'])
    
-    @pytest.mark.xfail(reason="AssertionError: assert 11 == (11 - 1) -> link is not removed in sdx-controller")
     def test_050_del_intra_link_check_topology(self):
        """ Remove an intra-domain Link and see how SDX controller exports the topology"""
        api_url = SDX_CONTROLLER + '/topology'
        response = requests.get(api_url)
        data = response.json()
-    #    print('--------- 1rt from SDX-C')
-    #    print(data["links"])
        len_links_controller = len(data['links'])
 
        sdx_api = KYTOS_SDX_API % 'tenet'
        response = requests.get(f"{sdx_api}/topology/2.0.0")
        data = response.json()
        len_links_kytos_sdx_api = len(data["links"])
-    #    print('--------- 1rt from tenet (KYTOS_SDX_API)')
-    #    print(data["links"])
 
        # Get the link_id (Tenet02-Tenet03 if exists)
        tenet_api = KYTOS_API % 'tenet'
@@ -142,8 +138,6 @@ class TestE2ETopologyBigChanges:
        response = requests.get(api_url)
        assert response.status_code == 200
        data = response.json()
-       #print('--------- 1rt from tenet (KYTOS_API)')
-       #print(data["links"])
        link_id = None
        for key, value in data['links'].items():
            link_id = key
@@ -170,13 +164,9 @@ class TestE2ETopologyBigChanges:
        assert response.status_code == 200
        data = response.json()
        assert link_id not in data["links"]
-       #print('------ link deleted ---------')
-       #print(link_id)
-       #print('--------- 2nd from tenet (KYTOS_API)')
-       #print(data["links"])
 
        # give time so that messages are propagated
-       time.sleep(15)
+       time.sleep(5)
        
        # Force to send the topology to the SDX-LC
        response = requests.post(f"{sdx_api}/topology/2.0.0")
@@ -184,8 +174,6 @@ class TestE2ETopologyBigChanges:
        response = requests.get(f"{sdx_api}/topology/2.0.0")
        assert response.status_code == 200
        data = response.json()
-    #    print('--------- 2nd from tenet (KYTOS_SDX_API)')
-    #    print(data["links"])
        assert len(data['links']) == len_links_kytos_sdx_api-1
 
        # give time so that messages are propagated
@@ -195,9 +183,7 @@ class TestE2ETopologyBigChanges:
        api_url = SDX_CONTROLLER + '/topology'
        response = requests.get(api_url)
        data = response.json()
-    #    print('--------- 2nd from SDX-C')
-    #    print(data["links"])
-       assert len(data['links']) == len_links_controller-1#, str(data['links'])
+       assert len(data['links']) == len_links_controller-1
 
     # def test_055_del_inter_link_check_topology(self):
     #    """ Remove an inter-domain Link and see how SDX controller exports the topology"""
