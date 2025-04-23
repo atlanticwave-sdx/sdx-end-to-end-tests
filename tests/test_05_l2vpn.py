@@ -376,7 +376,6 @@ class TestE2EL2VPN:
         assert ', 0% packet loss,' in result_102_2
 
 
-    @pytest.mark.xfail(reason="https://github.com/atlanticwave-sdx/sdx-controller/issues/448")
     def test_070_multiple_l2vpn_with_bandwidth_qos_metric(self):
         """
         Test the creation of multiple L2VPNs with Bandwidth QoS Metrics

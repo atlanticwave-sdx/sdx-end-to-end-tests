@@ -257,7 +257,6 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.patch(f"{api_url}/{self.key}", json=self.payload)
         assert response.status_code == 409, response.text
 
-    @pytest.mark.xfail(reason="status: 500")
     def test_060_edit_l2vpn_with_min_bw(self):
         """
         Test the return code for editing a SDX L2VPN
@@ -424,7 +423,6 @@ class TestE2EReturnCodesEditL2vpn:
         response = requests.patch(f"{api_url}/{self.key}", json=payload)
         assert response.status_code == 410, response.text
 
-    @pytest.mark.xfail(reason="status: 500")
     def test_070_edit_l2vpn_with_impossible_scheduling(self):
         """
         Test the return code for editing a SDX L2VPN
