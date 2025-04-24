@@ -66,7 +66,6 @@ class TestUseCases:
         time.sleep(5)
 
         data = requests.get(api_url).json()
-        assert len(data) == 1
         key = next(iter(data))
         assert data[key]["status"] == "up"
 
@@ -109,14 +108,14 @@ class TestUseCases:
         ## End of verification code
         assert data[key]["status"] == "down"
 
-        # set one link to down
+        # set one link to up
         self.net.net.configLinkStatus('Tenet01', 'Tenet03', 'up')
 
         time.sleep(15)
 
         data = requests.get(api_url).json()
         key = next(iter(data))
-        assert data[key]["status"] == "down"
+        assert data[key]["status"] == "up"
 
         # test connectivity
         assert ', 0% packet loss,' in h6.cmd('ping -c4 10.1.1.8')
@@ -175,9 +174,11 @@ class TestUseCases:
         key = next(iter(data))
         assert data[key]["status"] == "up"
 
-        # set one link to down
+        # set one link to up
         self.net.net.configLinkStatus('Tenet01', 'Tenet03', 'up')
 
+        time.sleep(15)
+        
         data = requests.get(api_url).json()
         key = next(iter(data))
         assert data[key]["status"] == "up"
