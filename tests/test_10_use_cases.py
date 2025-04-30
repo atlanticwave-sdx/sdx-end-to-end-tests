@@ -37,26 +37,14 @@ class TestUseCases:
         for l2vpn in response_json:
             response = requests.delete(api_url+f'/{l2vpn}')
 
-    def test_010_send_topo_update_with_intra_domain_link_down_path_found(self):
-        ''' Use case 1
-            OXPO sends a topology update with an intra-domain link down.
-            When possible, the SDX-Controller can find a path based on the exported topology. 
-
-            - Create a L2VPN between Tenet01:50 and Tenet03:50
-            - Check if that L2VPN status is UP (some wait may be required here)
-            - Run a PING test between hosts to make sure we have connectivity
-            - Config the Link Tenet01 — Tenet03 to down (some wait may be required here)
-            - Query the L2VPN and check the status to validate it is down
-            - Config the Link Tenet01 — Tenet03 to UP (some wait may be required here)
-            - Query the L2VPN and check the status to validate it is back UP
-            - Run a PING test between hosts to make sure we have connectivity
-        '''
+    def _create_l2vpn(self, port_1, port_2, vlan1="100", vlan2="100"):
+        '''Auxiliar function'''
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         payload = {
             "name": "Test L2VPN creation",
             "endpoints": [
-                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet01:50","vlan": "100"},
-                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "100"}
+                {"port_id": port_1,"vlan": vlan1},
+                {"port_id": port_2,"vlan": vlan2}
             ]
         }
         response = requests.post(api_url, json=payload)
@@ -65,9 +53,18 @@ class TestUseCases:
         # wait until status changes for under provisioning to up
         time.sleep(5)
 
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         data = requests.get(api_url).json()
         key = next(iter(data))
         assert data[key]["status"] == "up"
+        return key
+    
+    def test_010_update_intra_domain_link_down(self):
+        ''' Use case 1
+            OXPO sends a topology update with an intra-domain link down.
+            When possible, the SDX-Controller can find a path based on the exported topology. 
+        '''
+        key = self._create_l2vpn("urn:sdx:port:tenet.ac.za:Tenet01:50","urn:sdx:port:tenet.ac.za:Tenet03:50")
 
         h6, h8 = self.net.net.get('h6', 'h8')
         h6.cmd('ip link add link %s name vlan100 type vlan id 100' % (h6.intfNames()[0]))
@@ -85,73 +82,34 @@ class TestUseCases:
 
         time.sleep(15)
 
-        '''
-            HERE: The following code verifies that the link was set to down, 
-            and that the current_path is Tenet01-Tenet03, 
-            so the test fails because the L2VPN status is still up.
-        '''
-
-        ## Beginning of verification code
-        api_url_topology = SDX_CONTROLLER + '/topology'
-        response = requests.get(api_url_topology)
-        data = response.json()
-        links = {link["id"]: link for link in data["links"]}
-        link1 = "urn:sdx:link:tenet.ac.za:Tenet01/2_Tenet03/2"
-        assert links[link1]["status"] == "down", str(links[link1])
-        ## End of verification code
-
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         data = requests.get(api_url).json()
-        key = next(iter(data))
-        ## Beginning of verification code
-        path = [item['port_id'] for item in data[key]['current_path']]
-        assert path == ['urn:sdx:port:tenet.ac.za:Tenet01:50', 'urn:sdx:port:tenet.ac.za:Tenet03:50']
-        ## End of verification code
-        assert data[key]["status"] == "down"
+        assert data[key]["status"] == "down" ### FAIL HERE
 
+        # test connectivity
+        result1 = h6.cmd('ping -c4 10.1.1.8')
+
+        ### Reset
         # set one link to up
         self.net.net.configLinkStatus('Tenet01', 'Tenet03', 'up')
 
         time.sleep(15)
 
         data = requests.get(api_url).json()
-        key = next(iter(data))
         assert data[key]["status"] == "up"
 
         # test connectivity
-        assert ', 0% packet loss,' in h6.cmd('ping -c4 10.1.1.8')
+        result2 = h6.cmd('ping -c4 10.1.1.8')
 
-    def test_011_send_topo_update_with_intra_domain_link_down_path_not_found(self):
+        assert ', 100% packet loss,' in result1
+        assert ', 0% packet loss,' in result2
+
+    def test_011_update_intra_domain_link_down_path_found(self):
         ''' Use case 1
             OXPO sends a topology update with an intra-domain link down.
             When not possible, the SDX Controller will only update the L2VPN’s status using the means available.
-
-            - Create a L2VPN between Tenet01:50 and Tenet02:50
-            - Check if that L2VPN status is UP (some wait may be required here)
-            - Run a PING test between hosts to make sure we have connectivity
-            - Config the Link Tenet01 — Tenet02 to down (some wait may be required here)
-            - Query the L2VPN and check the status to validate it is UP (SDX should find another path using links from SAX)
-            - Config the Link Tenet01 — Tenet02 to UP (some wait may be required here)
-            - Query the L2VPN and check the status to validate it continue to be UP 
-            - Run a PING test between hosts to make sure we have connectivity
         '''
-        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
-        payload = {
-            "name": "Test L2VPN creation",
-            "endpoints": [
-                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet01:50","vlan": "100"},
-                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet02:50","vlan": "100"}
-            ]
-        }
-        response = requests.post(api_url, json=payload)
-        assert response.status_code == 201, response.text
-
-        # wait until status changes for under provisioning to up
-        time.sleep(5)
-
-        data = requests.get(api_url).json()
-        assert len(data) == 1
-        key = next(iter(data))
-        assert data[key]["status"] == "up"
+        key = self._create_l2vpn("urn:sdx:port:tenet.ac.za:Tenet01:50","urn:sdx:port:tenet.ac.za:Tenet02:50")
 
         h6, h7 = self.net.net.get('h6', 'h7')
         h6.cmd('ip link add link %s name vlan100 type vlan id 100' % (h6.intfNames()[0]))
@@ -170,40 +128,224 @@ class TestUseCases:
         time.sleep(15)
 
         # SDX should find another path using links from SAX
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         data = requests.get(api_url).json()
-        key = next(iter(data))
         assert data[key]["status"] == "up"
 
-        # set one link to up
+        # test connectivity
+        result_1 = h6.cmd('ping -c4 10.1.1.7')
+        
+        ### Reset 
         self.net.net.configLinkStatus('Tenet01', 'Tenet03', 'up')
 
         time.sleep(15)
         
         data = requests.get(api_url).json()
-        key = next(iter(data))
         assert data[key]["status"] == "up"
 
         # test connectivity
-        assert ', 0% packet loss,' in h6.cmd('ping -c4 10.1.1.7')
+        result_2 = h6.cmd('ping -c4 10.1.1.7')
 
-    def test_020_send_topo_update_with_port_in_inter_domain_link_down(self):
+        assert ', 0% packet loss,' in result_1  ### FAIL HERE
+        assert ', 0% packet loss,' in result_2
+
+    def test_015_update_port_in_inter_domain_link_down(self):
         ''' Use case 2
             OXPO sends a topology update with a Port Down and 
             that port is part of an inter-domain link.
         '''
+        key = self._create_l2vpn("urn:sdx:port:ampath.net:Ampath1:50","urn:sdx:port:tenet.ac.za:Tenet01:50")
 
-    def test_030_send_topo_update_with_port_in_uni_from_l2vpn_down(self):
+        h1, h6 = self.net.net.get('h1', 'h6')
+        h1.cmd('ip link add link %s name vlan100 type vlan id 100' % (h1.intfNames()[0]))
+        h1.cmd('ip link set up vlan100')
+        h1.cmd('ip addr add 10.1.1.1/24 dev vlan100')
+        h6.cmd('ip link add link %s name vlan100 type vlan id 100' % (h6.intfNames()[0]))
+        h6.cmd('ip link set up vlan100')
+        h6.cmd('ip addr add 10.1.1.6/24 dev vlan100')
+
+        # test connectivity
+        assert ', 0% packet loss,' in h1.cmd('ping -c4 10.1.1.6')
+
+        Ampath1 = self.net.net.get('Ampath1')
+        Ampath1.intf('Ampath1-eth40').ifconfig('down') 
+
+        time.sleep(15)
+
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        data = requests.get(api_url).json()
+        assert data[key]["status"] == "up"
+
+        # test connectivity
+        result_1 = h1.cmd('ping -c4 10.1.1.6')
+
+        ### Reset 
+        Ampath1.intf('Ampath1-eth40').ifconfig('up') 
+
+        time.sleep(15)
+
+        data = requests.get(api_url).json()
+        assert data[key]["status"] == "up"
+
+        # test connectivity
+        result_2 = h1.cmd('ping -c4 10.1.1.6')
+
+        assert ', 0% packet loss,' in result_1
+        assert ', 0% packet loss,' in result_2
+
+    def test_016_update_port_in_inter_domain_link_down_no_reprov(self):
+        ''' Use case 2
+            OXPO sends a topology update with a Port Down and 
+            that port is part of an inter-domain link.
+        '''
+        key = self._create_l2vpn("urn:sdx:port:ampath.net:Ampath1:50","urn:sdx:port:tenet.ac.za:Tenet01:50")
+
+        h1, h6 = self.net.net.get('h1', 'h6')
+        h1.cmd('ip link add link %s name vlan100 type vlan id 100' % (h1.intfNames()[0]))
+        h1.cmd('ip link set up vlan100')
+        h1.cmd('ip addr add 10.1.1.1/24 dev vlan100')
+        h6.cmd('ip link add link %s name vlan100 type vlan id 100' % (h6.intfNames()[0]))
+        h6.cmd('ip link set up vlan100')
+        h6.cmd('ip addr add 10.1.1.6/24 dev vlan100')
+
+        # test connectivity
+        assert ', 0% packet loss,' in h1.cmd('ping -c4 10.1.1.6')
+
+        Ampath1 = self.net.net.get('Ampath1')
+        Ampath1.intf('Ampath1-eth40').ifconfig('down') 
+
+        #  Cause no further (re)provisioning to be possible
+        Sax01 = self.net.net.get('Sax01')
+        Sax01.intf('Sax01-eth41').ifconfig('down') 
+        Tenet02 = self.net.net.get('Tenet02')
+        Tenet02.intf('Tenet02-eth1').ifconfig('down') 
+
+        time.sleep(15)
+
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        data = requests.get(api_url).json()
+
+        # test connectivity
+        result1 = h1.cmd('ping -c4 10.1.1.6')
+
+        ### Reset 
+        Ampath1.intf('Ampath1-eth40').ifconfig('up') 
+        Sax01.intf('Sax01-eth41').ifconfig('up') 
+        Tenet02.intf('Tenet02-eth1').ifconfig('up') 
+
+        time.sleep(15)
+
+        assert data != {}  ### FAIL HERE
+        assert data[key]["status"] == "down"
+
+        data = requests.get(api_url).json()
+        assert data[key]["status"] == "up"
+
+        # test connectivity
+        result2 = h1.cmd('ping -c4 10.1.1.6')
+
+        assert ', 100% packet loss,' in result1
+        assert ', 0% packet loss,' in result2
+
+    def test_020_update_uni_port_down(self):
         ''' Use case 3
             OXPO sends a topology update with a Port Down and 
             that port is an UNI for some L2VPN.
         '''
+        key = self._create_l2vpn("urn:sdx:port:ampath.net:Ampath1:50","urn:sdx:port:tenet.ac.za:Tenet01:50")
 
-    def test_040_send_topo_update_with_node_down(self):
+        h1, h6 = self.net.net.get('h1', 'h6')
+        h1.cmd('ip link add link %s name vlan100 type vlan id 100' % (h1.intfNames()[0]))
+        h1.cmd('ip link set up vlan100')
+        h1.cmd('ip addr add 10.1.1.1/24 dev vlan100')
+        h6.cmd('ip link add link %s name vlan100 type vlan id 100' % (h6.intfNames()[0]))
+        h6.cmd('ip link set up vlan100')
+        h6.cmd('ip addr add 10.1.1.6/24 dev vlan100')
+
+        # test connectivity
+        assert ', 0% packet loss,' in h1.cmd('ping -c4 10.1.1.6')
+
+        Tenet01 = self.net.net.get('Tenet01')
+        Tenet01.intf('Tenet01-eth50').ifconfig('down') 
+
+        time.sleep(15)
+
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        data = requests.get(api_url).json()
+        assert data[key]["status"] == "down"  ### FAIL HERE
+
+        # test connectivity
+        result_1 = h1.cmd('ping -c4 10.1.1.6')
+
+        ### Reset 
+        Tenet01.intf('Tenet01-eth50').ifconfig('up') 
+
+        time.sleep(15)
+
+        data = requests.get(api_url).json()
+        assert data[key]["status"] == "up"
+
+        # test connectivity
+        result_2 = h1.cmd('ping -c4 10.1.1.6')
+
+        assert ', 100% packet loss,' in result_1
+        assert ', 0% packet loss,' in result_2
+
+    def test_025_update_with_node_down(self):
         ''' Use case 4
             OXPO sends a topology update with a Node down (switch down).
         '''
-    
-    def test_050_send_topo_update_with_port_in_inter_domain_link_up(self):
+        def set_node(node, status, target):
+            if status == 'down':
+                node.cmd(f"ovs-vsctl set-controller {node.name} {target}")
+                node.cmd(f"ovs-vsctl get-controller {node.name}") 
+            else:
+                node.cmd(f"ovs-vsctl set-controller {node.name} {target}")
+                node.cmd(f"ovs-vsctl get-controller {node.name}") 
+
+        key = self._create_l2vpn("urn:sdx:port:ampath.net:Ampath1:50","urn:sdx:port:tenet.ac.za:Tenet01:50")
+
+        h1, h6 = self.net.net.get('h1', 'h6')
+        h1.cmd('ip link add link %s name vlan100 type vlan id 100' % (h1.intfNames()[0]))
+        h1.cmd('ip link set up vlan100')
+        h1.cmd('ip addr add 10.1.1.1/24 dev vlan100')
+        h6.cmd('ip link add link %s name vlan100 type vlan id 100' % (h6.intfNames()[0]))
+        h6.cmd('ip link set up vlan100')
+        h6.cmd('ip addr add 10.1.1.6/24 dev vlan100')
+
+        # test connectivity
+        assert ', 0% packet loss,' in h1.cmd('ping -c4 10.1.1.6')
+
+        api_url_topology = SDX_CONTROLLER + '/topology'
+        response = requests.get(api_url_topology)
+        data = response.json()
+        print({node['name']:node['status'] for node in data['nodes']})
+
+        Ampath1 = self.net.net.get('Ampath1')
+        set_node(Ampath1, 'down', "tcp:127.0.0.1:6654")
+
+        time.sleep(15)
+
+        api_url_topology = SDX_CONTROLLER + '/topology'
+        response = requests.get(api_url_topology)
+        data = response.json()
+        print({node['name']:node['status'] for node in data['nodes']})
+
+        ### Reset
+        set_node(Ampath1, 'down', "tcp:127.0.0.1:6653")
+
+        time.sleep(15)
+
+        api_url_topology = SDX_CONTROLLER + '/topology'
+        response = requests.get(api_url_topology)
+        data = response.json()
+        print({node['name']:node['status'] for node in data['nodes']})
+
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        data = requests.get(api_url).json()
+        assert data[key]["status"] == "up"
+
+    def test_030_send_topo_update_with_port_in_inter_domain_link_up(self):
         ''' Use case 5
             OXPO sends a topology update with a Port UP and 
             that port is an inter-domain link.
