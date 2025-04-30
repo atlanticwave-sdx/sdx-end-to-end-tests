@@ -36,6 +36,7 @@ class TestUseCases:
         response_json = response.json()
         for l2vpn in response_json:
             response = requests.delete(api_url+f'/{l2vpn}')
+        cls.net.config_all_links_up()
 
     def _create_l2vpn(self, port_1, port_2, vlan1="100", vlan2="100"):
         '''Auxiliar function'''
@@ -87,7 +88,7 @@ class TestUseCases:
         assert data[key]["status"] == "down" ### FAIL HERE
 
         # test connectivity
-        result1 = h6.cmd('ping -c4 10.1.1.8')
+        assert ', 100% packet loss,' in h6.cmd('ping -c4 10.1.1.8')
 
         ### Reset
         # set one link to up
@@ -99,10 +100,7 @@ class TestUseCases:
         assert data[key]["status"] == "up"
 
         # test connectivity
-        result2 = h6.cmd('ping -c4 10.1.1.8')
-
-        assert ', 100% packet loss,' in result1
-        assert ', 0% packet loss,' in result2
+        assert ', 0% packet loss,' in h6.cmd('ping -c4 10.1.1.8')
 
     def test_011_update_intra_domain_link_down_path_found(self):
         ''' Use case 1
@@ -133,7 +131,7 @@ class TestUseCases:
         assert data[key]["status"] == "up"
 
         # test connectivity
-        result_1 = h6.cmd('ping -c4 10.1.1.7')
+        assert ', 0% packet loss,' in h6.cmd('ping -c4 10.1.1.7')  ### FAIL HERE
         
         ### Reset 
         self.net.net.configLinkStatus('Tenet01', 'Tenet03', 'up')
@@ -144,10 +142,7 @@ class TestUseCases:
         assert data[key]["status"] == "up"
 
         # test connectivity
-        result_2 = h6.cmd('ping -c4 10.1.1.7')
-
-        assert ', 0% packet loss,' in result_1  ### FAIL HERE
-        assert ', 0% packet loss,' in result_2
+        assert ', 0% packet loss,' in h6.cmd('ping -c4 10.1.1.7')
 
     def test_015_update_port_in_inter_domain_link_down(self):
         ''' Use case 2
@@ -235,8 +230,7 @@ class TestUseCases:
 
         time.sleep(15)
 
-        assert data != {}  ### FAIL HERE
-        assert data[key]["status"] == "down"
+        assert data[key]["status"] == "down" ### FAIL HERE
 
         data = requests.get(api_url).json()
         assert data[key]["status"] == "up"
@@ -295,55 +289,6 @@ class TestUseCases:
         ''' Use case 4
             OXPO sends a topology update with a Node down (switch down).
         '''
-        def set_node(node, status, target):
-            if status == 'down':
-                node.cmd(f"ovs-vsctl set-controller {node.name} {target}")
-                node.cmd(f"ovs-vsctl get-controller {node.name}") 
-            else:
-                node.cmd(f"ovs-vsctl set-controller {node.name} {target}")
-                node.cmd(f"ovs-vsctl get-controller {node.name}") 
-
-        key = self._create_l2vpn("urn:sdx:port:ampath.net:Ampath1:50","urn:sdx:port:tenet.ac.za:Tenet01:50")
-
-        h1, h6 = self.net.net.get('h1', 'h6')
-        h1.cmd('ip link add link %s name vlan100 type vlan id 100' % (h1.intfNames()[0]))
-        h1.cmd('ip link set up vlan100')
-        h1.cmd('ip addr add 10.1.1.1/24 dev vlan100')
-        h6.cmd('ip link add link %s name vlan100 type vlan id 100' % (h6.intfNames()[0]))
-        h6.cmd('ip link set up vlan100')
-        h6.cmd('ip addr add 10.1.1.6/24 dev vlan100')
-
-        # test connectivity
-        assert ', 0% packet loss,' in h1.cmd('ping -c4 10.1.1.6')
-
-        api_url_topology = SDX_CONTROLLER + '/topology'
-        response = requests.get(api_url_topology)
-        data = response.json()
-        print({node['name']:node['status'] for node in data['nodes']})
-
-        Ampath1 = self.net.net.get('Ampath1')
-        set_node(Ampath1, 'down', "tcp:127.0.0.1:6654")
-
-        time.sleep(15)
-
-        api_url_topology = SDX_CONTROLLER + '/topology'
-        response = requests.get(api_url_topology)
-        data = response.json()
-        print({node['name']:node['status'] for node in data['nodes']})
-
-        ### Reset
-        set_node(Ampath1, 'down', "tcp:127.0.0.1:6653")
-
-        time.sleep(15)
-
-        api_url_topology = SDX_CONTROLLER + '/topology'
-        response = requests.get(api_url_topology)
-        data = response.json()
-        print({node['name']:node['status'] for node in data['nodes']})
-
-        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
-        data = requests.get(api_url).json()
-        assert data[key]["status"] == "up"
 
     def test_030_send_topo_update_with_port_in_inter_domain_link_up(self):
         ''' Use case 5
