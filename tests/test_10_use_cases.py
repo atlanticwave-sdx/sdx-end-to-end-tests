@@ -277,7 +277,7 @@ class TestUseCases:
         # test connectivity
         assert ', 0% packet loss,' in h1.cmd('ping -c4 10.1.1.6')
 
-    def test_025_update_with_node_down(self):
+    def test_025_update_node_down(self):
         ''' Use case 4
             OXPO sends a topology update with a Node down (switch down).
         '''
@@ -312,6 +312,7 @@ class TestUseCases:
         assert status_nodes['Ampath1'] == 'up'
 
         Ampath1 = self.net.net.get('Ampath1')
+        config = Ampath1.cmd('ovs-vsctl get-controller', Ampath1.name)
         set_node(Ampath1, 'down', "tcp:127.0.0.1:6654")
 
         time.sleep(15)
@@ -322,7 +323,7 @@ class TestUseCases:
         assert status_nodes['Ampath1'] == 'down'
 
         ### Reset
-        set_node(Ampath1, 'up', "tcp:127.0.0.1:6653")
+        set_node(Ampath1, 'up', config)
 
         time.sleep(15)
 
@@ -335,7 +336,7 @@ class TestUseCases:
         data = requests.get(api_url).json()
         assert data[key]["status"] == "up"
 
-    def test_030_send_topo_update_with_port_in_inter_domain_link_up(self):
+    def test_030_update_port_in_inter_domain_link_up(self):
         ''' Use case 5
             OXPO sends a topology update with a Port UP and 
             that port is an inter-domain link.
