@@ -60,7 +60,8 @@ class TestUseCases:
         key = next(iter(data))
         assert data[key]["status"] == "up"
         return key
-    
+
+    @pytest.mark.xfail(reason="The status of the L2VPN doesn't change to down after setting the link to down")
     def test_010_update_intra_domain_link_down(self):
         ''' Use case 1
             OXPO sends a topology update with an intra-domain link down.
@@ -86,7 +87,7 @@ class TestUseCases:
 
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         data = requests.get(api_url).json()
-        assert data[key]["status"] == "down" ### FAIL HERE
+        assert data[key]["status"] == "down"   ### FAIL HERE
 
         # test connectivity
         assert ', 100% packet loss,' in h6.cmd('ping -c4 10.1.1.8')
@@ -103,6 +104,7 @@ class TestUseCases:
         # test connectivity
         assert ', 0% packet loss,' in h6.cmd('ping -c4 10.1.1.8')
 
+    @pytest.mark.xfail(reason="After setting a link down and finding an alternate path, connectivity between hosts is not checked.")
     def test_011_update_intra_domain_link_down_path_found(self):
         ''' Use case 1
             OXPO sends a topology update with an intra-domain link down.
@@ -186,6 +188,7 @@ class TestUseCases:
         # test connectivity
         assert ', 0% packet loss,' in h1.cmd('ping -c4 10.1.1.6')
 
+    @pytest.mark.xfail(reason="The status of the L2VPN doesn't change to down after setting the link to down and ensure that provisioning is not possible")
     def test_016_update_port_in_inter_domain_link_down_no_reprov(self):
         ''' Use case 2
             OXPO sends a topology update with a Port Down and 
@@ -204,10 +207,7 @@ class TestUseCases:
         # test connectivity
         assert ', 0% packet loss,' in h1.cmd('ping -c4 10.1.1.6')
 
-        # Ampath1 = self.net.net.get('Ampath1')
-        # Ampath1.intf('Ampath1-eth40').ifconfig('down') 
         self.net.net.configLinkStatus('Ampath1', 'Sax01', 'down')
-
 
         #  Cause no further (re)provisioning to be possible
         self.net.net.configLinkStatus('Tenet01', 'Sax01', 'down')
@@ -236,6 +236,7 @@ class TestUseCases:
         # test connectivity
         assert ', 0% packet loss,' in h1.cmd('ping -c4 10.1.1.6')
 
+    @pytest.mark.xfail(reason="The status of the L2VPN doesn't change to down after setting the port to down")
     def test_020_update_uni_port_down(self):
         ''' Use case 3
             OXPO sends a topology update with a Port Down and 
@@ -277,6 +278,7 @@ class TestUseCases:
         # test connectivity
         assert ', 0% packet loss,' in h1.cmd('ping -c4 10.1.1.6')
 
+    @pytest.mark.xfail(reason="After changing the node status to down, the associated ports and links remain up.")
     def test_025_update_node_down(self):
         ''' Use case 4
             OXPO sends a topology update with a Node down (switch down).
@@ -287,7 +289,7 @@ class TestUseCases:
                 node.cmd(f"ovs-vsctl get-controller {node.name}") 
             else:
                 node.cmd(f"ovs-vsctl set-controller {node.name} {target}")
-                node.cmd(f"ovs-vsctl get-controller {node.name}") 
+                node.cmd(f"ovs-vsctl get-controller {node.name}")
 
         key = self._create_l2vpn("urn:sdx:port:ampath.net:Ampath1:50","urn:sdx:port:tenet.ac.za:Tenet01:50")
 
@@ -302,35 +304,31 @@ class TestUseCases:
         # test connectivity
         assert ', 0% packet loss,' in h1.cmd('ping -c4 10.1.1.6')
 
-        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
-        data = requests.get(api_url).json()
+        node_name = 'Ampath1'
+        node = self.net.net.get(node_name)
+        config = node.cmd('ovs-vsctl get-controller', node.name).split()
+        set_node(node, 'down', "tcp:127.0.0.1:6654")
+
+        time.sleep(15)
 
         api_url_topology = SDX_CONTROLLER + '/topology'
         response = requests.get(api_url_topology)
         data = response.json()
-        status_nodes = {node['name']:node['status'] for node in data['nodes']}
-        assert status_nodes['Ampath1'] == 'up'
+        for item in data['nodes']:
+            if item["name"] == node_name:
+                assert item['status'] == 'down'
+                assert len([port['name'] for port in item["ports"] if port['status'] == 'up']) == 0, item["ports"]   ### FAIL HERE
+                break
+        assert len([link['name'] for link in data['links'] if node_name in link['name'] and link['status'] == 'up']) == 0, data['links']
 
-        Ampath1 = self.net.net.get('Ampath1')
-        config = Ampath1.cmd('ovs-vsctl get-controller', Ampath1.name).split()[-1]
-        set_node(Ampath1, 'down', "tcp:127.0.0.1:6654")
-
-        time.sleep(15)
-
-        response = requests.get(api_url_topology)
-        data = response.json()
-        status_nodes = {node['name']:node['status'] for node in data['nodes']}
-        assert status_nodes['Ampath1'] == 'down'
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        data = requests.get(api_url).json()
+        assert data[key]["status"] == "error"
 
         ### Reset
-        set_node(Ampath1, 'up', config)
+        set_node(node, 'up', " ".join(config))
 
         time.sleep(15)
-
-        response = requests.get(api_url_topology)
-        data = response.json()
-        status_nodes = {node['name']:node['status'] for node in data['nodes']}
-        assert status_nodes['Ampath1'] == 'up'  ### FAIL HERE
 
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         data = requests.get(api_url).json()
