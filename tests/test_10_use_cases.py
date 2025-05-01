@@ -312,7 +312,7 @@ class TestUseCases:
         assert status_nodes['Ampath1'] == 'up'
 
         Ampath1 = self.net.net.get('Ampath1')
-        config = Ampath1.cmd('ovs-vsctl get-controller', Ampath1.name)
+        config = Ampath1.cmd('ovs-vsctl get-controller', Ampath1.name).split()[-1]
         set_node(Ampath1, 'down', "tcp:127.0.0.1:6654")
 
         time.sleep(15)
