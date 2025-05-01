@@ -37,6 +37,7 @@ class TestUseCases:
         for l2vpn in response_json:
             response = requests.delete(api_url+f'/{l2vpn}')
         cls.net.config_all_links_up()
+        time.sleep(15)
 
     def _create_l2vpn(self, port_1, port_2, vlan1="100", vlan2="100"):
         '''Auxiliar function'''
@@ -172,7 +173,7 @@ class TestUseCases:
         assert data[key]["status"] == "up"
 
         # test connectivity
-        result_1 = h1.cmd('ping -c4 10.1.1.6')
+        assert ', 0% packet loss,' in h1.cmd('ping -c4 10.1.1.6')
 
         ### Reset 
         Ampath1.intf('Ampath1-eth40').ifconfig('up') 
@@ -183,10 +184,7 @@ class TestUseCases:
         assert data[key]["status"] == "up"
 
         # test connectivity
-        result_2 = h1.cmd('ping -c4 10.1.1.6')
-
-        assert ', 0% packet loss,' in result_1
-        assert ', 0% packet loss,' in result_2
+        assert ', 0% packet loss,' in h1.cmd('ping -c4 10.1.1.6')
 
     def test_016_update_port_in_inter_domain_link_down_no_reprov(self):
         ''' Use case 2
@@ -206,14 +204,14 @@ class TestUseCases:
         # test connectivity
         assert ', 0% packet loss,' in h1.cmd('ping -c4 10.1.1.6')
 
-        Ampath1 = self.net.net.get('Ampath1')
-        Ampath1.intf('Ampath1-eth40').ifconfig('down') 
+        # Ampath1 = self.net.net.get('Ampath1')
+        # Ampath1.intf('Ampath1-eth40').ifconfig('down') 
+        self.net.net.configLinkStatus('Ampath1', 'Sax01', 'down')
+
 
         #  Cause no further (re)provisioning to be possible
-        Sax01 = self.net.net.get('Sax01')
-        Sax01.intf('Sax01-eth41').ifconfig('down') 
-        Tenet02 = self.net.net.get('Tenet02')
-        Tenet02.intf('Tenet02-eth1').ifconfig('down') 
+        self.net.net.configLinkStatus('Tenet01', 'Sax01', 'down')
+        self.net.net.configLinkStatus('Tenet01', 'Tenet02', 'down')
 
         time.sleep(15)
 
@@ -221,12 +219,12 @@ class TestUseCases:
         data = requests.get(api_url).json()
 
         # test connectivity
-        result1 = h1.cmd('ping -c4 10.1.1.6')
+        assert ', 100% packet loss,' in h1.cmd('ping -c4 10.1.1.6')
 
         ### Reset 
-        Ampath1.intf('Ampath1-eth40').ifconfig('up') 
-        Sax01.intf('Sax01-eth41').ifconfig('up') 
-        Tenet02.intf('Tenet02-eth1').ifconfig('up') 
+        self.net.net.configLinkStatus('Ampath1', 'Sax01', 'up')
+        self.net.net.configLinkStatus('Tenet01', 'Sax01', 'up')
+        self.net.net.configLinkStatus('Tenet01', 'Tenet02', 'up')
 
         time.sleep(15)
 
@@ -236,10 +234,7 @@ class TestUseCases:
         assert data[key]["status"] == "up"
 
         # test connectivity
-        result2 = h1.cmd('ping -c4 10.1.1.6')
-
-        assert ', 100% packet loss,' in result1
-        assert ', 0% packet loss,' in result2
+        assert ', 0% packet loss,' in h1.cmd('ping -c4 10.1.1.6')
 
     def test_020_update_uni_port_down(self):
         ''' Use case 3
@@ -269,7 +264,7 @@ class TestUseCases:
         assert data[key]["status"] == "down"  ### FAIL HERE
 
         # test connectivity
-        result_1 = h1.cmd('ping -c4 10.1.1.6')
+        assert ', 100% packet loss,' in h1.cmd('ping -c4 10.1.1.6')
 
         ### Reset 
         Tenet01.intf('Tenet01-eth50').ifconfig('up') 
@@ -280,15 +275,65 @@ class TestUseCases:
         assert data[key]["status"] == "up"
 
         # test connectivity
-        result_2 = h1.cmd('ping -c4 10.1.1.6')
-
-        assert ', 100% packet loss,' in result_1
-        assert ', 0% packet loss,' in result_2
+        assert ', 0% packet loss,' in h1.cmd('ping -c4 10.1.1.6')
 
     def test_025_update_with_node_down(self):
         ''' Use case 4
             OXPO sends a topology update with a Node down (switch down).
         '''
+        def set_node(node, status, target):
+            if status == 'down':
+                node.cmd(f"ovs-vsctl set-controller {node.name} {target}")
+                node.cmd(f"ovs-vsctl get-controller {node.name}") 
+            else:
+                node.cmd(f"ovs-vsctl set-controller {node.name} {target}")
+                node.cmd(f"ovs-vsctl get-controller {node.name}") 
+
+        key = self._create_l2vpn("urn:sdx:port:ampath.net:Ampath1:50","urn:sdx:port:tenet.ac.za:Tenet01:50")
+
+        h1, h6 = self.net.net.get('h1', 'h6')
+        h1.cmd('ip link add link %s name vlan100 type vlan id 100' % (h1.intfNames()[0]))
+        h1.cmd('ip link set up vlan100')
+        h1.cmd('ip addr add 10.1.1.1/24 dev vlan100')
+        h6.cmd('ip link add link %s name vlan100 type vlan id 100' % (h6.intfNames()[0]))
+        h6.cmd('ip link set up vlan100')
+        h6.cmd('ip addr add 10.1.1.6/24 dev vlan100')
+
+        # test connectivity
+        assert ', 0% packet loss,' in h1.cmd('ping -c4 10.1.1.6')
+
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        data = requests.get(api_url).json()
+
+        api_url_topology = SDX_CONTROLLER + '/topology'
+        response = requests.get(api_url_topology)
+        data = response.json()
+        status_nodes = {node['name']:node['status'] for node in data['nodes']}
+        assert status_nodes['Ampath1'] == 'up'
+
+        Ampath1 = self.net.net.get('Ampath1')
+        set_node(Ampath1, 'down', "tcp:127.0.0.1:6654")
+
+        time.sleep(15)
+
+        response = requests.get(api_url_topology)
+        data = response.json()
+        status_nodes = {node['name']:node['status'] for node in data['nodes']}
+        assert status_nodes['Ampath1'] == 'down'
+
+        ### Reset
+        set_node(Ampath1, 'up', "tcp:127.0.0.1:6653")
+
+        time.sleep(15)
+
+        response = requests.get(api_url_topology)
+        data = response.json()
+        status_nodes = {node['name']:node['status'] for node in data['nodes']}
+        assert status_nodes['Ampath1'] == 'up'  ### FAIL HERE
+
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        data = requests.get(api_url).json()
+        assert data[key]["status"] == "up"
 
     def test_030_send_topo_update_with_port_in_inter_domain_link_up(self):
         ''' Use case 5
