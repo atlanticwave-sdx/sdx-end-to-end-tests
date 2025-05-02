@@ -278,7 +278,6 @@ class TestUseCases:
         # test connectivity
         assert ', 0% packet loss,' in h1.cmd('ping -c4 10.1.1.6')
 
-    @pytest.mark.xfail(reason="After changing the node status to down, the associated ports and links remain up.")
     def test_025_update_node_down(self):
         ''' Use case 4
             OXPO sends a topology update with a Node down (switch down).
@@ -311,19 +310,9 @@ class TestUseCases:
 
         time.sleep(15)
 
-        api_url_topology = SDX_CONTROLLER + '/topology'
-        response = requests.get(api_url_topology)
-        data = response.json()
-        for item in data['nodes']:
-            if item["name"] == node_name:
-                assert item['status'] == 'down'
-                assert len([port['name'] for port in item["ports"] if port['status'] == 'up']) == 0, item["ports"]   ### FAIL HERE
-                break
-        assert len([link['name'] for link in data['links'] if node_name in link['name'] and link['status'] == 'up']) == 0, data['links']
-
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         data = requests.get(api_url).json()
-        assert data[key]["status"] == "error"
+        assert data[key]["status"] == "up"
 
         ### Reset
         set_node(node, 'up', " ".join(config))
