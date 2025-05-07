@@ -631,7 +631,7 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 400, response.text
     
-    @pytest.mark.xfail(reason="return status 201")
+    #@pytest.mark.xfail(reason="return status 201")
     def test_061_create_l2vpn_with_no_available_oxps(self):
         """
         Creating a L2VPN from Ampath03 to Tenet03 (it means that the path will contain 3 OXP) 
