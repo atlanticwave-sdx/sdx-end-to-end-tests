@@ -33,6 +33,9 @@ class TestE2EReturnCodesEditL2vpn:
         response_json = response.json()
         for l2vpn in response_json:
             response = requests.delete(api_url+f'/{l2vpn}')
+        # wait for the L2VPNs to be deleted
+        time.sleep(2)
+
         # Create an L2VPN to edit later
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         cls.payload = {
@@ -44,12 +47,12 @@ class TestE2EReturnCodesEditL2vpn:
         }
         response = requests.post(api_url, json=cls.payload)
         assert response.status_code == 201, response.text
+        service_id = response.json()["service_id"]
 
         # wait until status changes for UNDER_PROVISIONING to UP
         for i in range(30):
             data = requests.get(api_url).json()
-            cls.key = next(iter(data))
-            if data[cls.key]["status"] == "up":
+            if data[service_id]["status"] == "up":
                 break
             time.sleep(2)
         else:
