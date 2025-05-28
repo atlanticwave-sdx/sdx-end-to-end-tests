@@ -157,6 +157,45 @@ class TestE2EReturnCodes:
         }
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
+        data = response.json()
+        assert data.get("status") == "under provisioning", data
+        service_id = data.get("service_id")
+        assert service_id != None, data
+
+        # give enough time to SDX-Controller to propagate change to OXPs
+        time.sleep(5)
+
+        response = requests.get(api_url)
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert len(data) == 1, data
+        assert service_id in data, data
+        assert data[service_id].get("status") == "up", data
+
+        #
+        # make sure OXPs have the new EVCs
+        ## -> ampath
+        response = requests.get("http://ampath:8181/api/kytos/mef_eline/v2/evc/")
+        evcs = response.json()
+        assert len(evcs) == 1, response.text
+        found = 0
+        for evc in evcs.values():
+            if evc.get("uni_a", {}).get("tag", {}).get("value") == 100:
+                found += 1
+        assert found == 1, evcs
+        ## -> sax
+        response = requests.get("http://sax:8181/api/kytos/mef_eline/v2/evc/")
+        evcs = response.json()
+        assert len(evcs) == 1, response.text
+        ## -> Tenet
+        response = requests.get("http://tenet:8181/api/kytos/mef_eline/v2/evc/")
+        evcs = response.json()
+        assert len(evcs) == 1, response.text
+        found = 0
+        for evc in evcs.values():
+            if evc.get("uni_z", {}).get("tag", {}).get("value") == "untagged":
+                found += 1
+        assert found == 1, evcs
 
     def _future_date(self, isoformat_time=True):
         # Get the current time
