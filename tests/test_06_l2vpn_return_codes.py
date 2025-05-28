@@ -151,7 +151,7 @@ class TestE2EReturnCodes:
         payload = {
             "name": "Test L2VPN creation with VLAN untagged",
             "endpoints": [
-                {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "100"},
+                {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "599"},
                 {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": "untagged"}
             ]
         }
@@ -180,7 +180,7 @@ class TestE2EReturnCodes:
         assert len(evcs) == 1, response.text
         found = 0
         for evc in evcs.values():
-            if evc.get("uni_a", {}).get("tag", {}).get("value") == 100:
+            if evc.get("uni_a", {}).get("tag", {}).get("value") == 599:
                 found += 1
         assert found == 1, evcs
         ## -> sax
