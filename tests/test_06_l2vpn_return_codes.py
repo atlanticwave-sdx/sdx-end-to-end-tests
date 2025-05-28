@@ -33,6 +33,10 @@ class TestE2EReturnCodes:
         response_json = response.json()
         for l2vpn in response_json:
             response = requests.delete(api_url+f'/{l2vpn}')
+
+        # wait for L2VPN to be actually deleted
+        time.sleep(2)
+
     
     def test_010_create_l2vpn(self):
         """
