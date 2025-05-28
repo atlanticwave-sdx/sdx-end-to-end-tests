@@ -44,10 +44,9 @@ class TestE2EReturnCodesListL2vpn:
         }
         response = requests.post(api_url, json=cls.payload)
         assert response.status_code == 201, response.text
-
-        response = requests.get(api_url)
-        data = response.json()
-        cls.key = list(data.keys())[0]
+        cls.key = response.json()["service_id"]
+        # allow a few seconds so that SDX-Controller can propagate changes
+        time.sleep(3)
 
     def _add_l2vpn(self, n = 2):
         '''Auxiliar function'''
