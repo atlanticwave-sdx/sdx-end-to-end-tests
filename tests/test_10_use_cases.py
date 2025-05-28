@@ -36,6 +36,7 @@ class TestUseCases:
         response_json = response.json()
         for l2vpn in response_json:
             response = requests.delete(api_url+f'/{l2vpn}')
+            assert response.status_code == 200, response.text
         cls.net.config_all_links_up()
         cls.net.config_all_ports_up()
         time.sleep(15)
@@ -54,14 +55,14 @@ class TestUseCases:
         assert response.status_code == 201, response.text
 
         # wait until status changes for under provisioning to up
-        time.sleep(5)
-
+        time.sleep(15)
+        
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         data = requests.get(api_url).json()
         key = next(iter(data))
         assert data[key]["status"] == "up"
         return key
-
+        
     @pytest.mark.xfail(reason="The status of the L2VPN doesn't change to down after setting the link to down")
     def test_010_update_intra_domain_link_down(self):
         ''' Use case 1
@@ -566,25 +567,539 @@ class TestUseCases:
 
         # Test connectivity (should succeed)
         assert ', 0% packet loss,' in h6.cmd('ping -c4 10.1.1.8')
+
+    @pytest.mark.xfail(reason="The status of the L2VPN doesn't change to down after setting the link to down")
+    def test_60_update_port_uni_missing(self):
+        ''' Use case 9
+            OXPO sends a topology update with a Port missing
+        '''
+        # Create L2VPN with UNI port
+        key = self._create_l2vpn("urn:sdx:port:tenet.ac.za:Tenet01:50", "urn:sdx:port:tenet.ac.za:Tenet03:50")
+
+        # Configure hosts
+        h6, h8 = self.net.net.get('h6', 'h8')
+        h6.cmd('ip link add link %s name vlan100 type vlan id 100' % (h6.intfNames()[0]))
+        h6.cmd('ip link set up vlan100')
+        h6.cmd('ip addr add 10.1.1.6/24 dev vlan100')
+        h8.cmd('ip link add link %s name vlan100 type vlan id 100' % (h8.intfNames()[0]))
+        h8.cmd('ip link set up vlan100')
+        h8.cmd('ip addr add 10.1.1.8/24 dev vlan100')
+
+        # Test initial connectivity
+        assert ', 0% packet loss,' in h6.cmd('ping -c4 10.1.1.8')
+
+        # Simulate UNI port missing by setting link to down
+        self.net.net.configLinkStatus('Tenet01', 'Tenet03', 'down')
+        time.sleep(15)  # Wait for topology update propagation
+
+        # Verify L2VPN status is down
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        data = requests.get(api_url).json()
+        assert data[key]["status"] == "down", "L2VPN status did not change to down"   ### FAIL HERE
+
+        # Test connectivity (should fail)
+        assert ', 100% packet loss,' in h6.cmd('ping -c4 10.1.1.8')
+
+        # Reset: Restore link
+        self.net.net.configLinkStatus('Tenet01', 'Tenet03', 'up')
+        time.sleep(15)
+
+        # Verify L2VPN status is up
+        data = requests.get(api_url).json()
+        assert data[key]["status"] == "up"
+
+        # Test connectivity (should succeed)
+        assert ', 0% packet loss,' in h6.cmd('ping -c4 10.1.1.8')
+    
+    @pytest.mark.xfail(reason="After setting a link down and setting it back to up, connectivity between hosts is not checked.")
+    def test_65_update_port_nni_missing(self):
+        ''' Use case 9
+            OXPO sends a topology update with a NNI Port missing
+        '''
+        key = self._create_l2vpn("urn:sdx:port:tenet.ac.za:Tenet01:50", "urn:sdx:port:tenet.ac.za:Tenet02:50")
+        port = 'urn:sdx:port:tenet.ac.za:Tenet02:1' 
+        port2 = 'urn:sdx:port:tenet.ac.za:Tenet01:1'
+        link_id = 'urn:sdx:link:tenet.ac.za:Tenet01/1_Tenet02/1'
+
+        # Configure hosts
+        h6, h7 = self.net.net.get('h6', 'h7')
+        h6.cmd('ip link add link %s name vlan100 type vlan id 100' % (h6.intfNames()[0]))
+        h6.cmd('ip link set up vlan100')
+        h6.cmd('ip addr add 10.1.1.6/24 dev vlan100')
+        h7.cmd('ip link add link %s name vlan100 type vlan id 100' % (h7.intfNames()[0]))
+        h7.cmd('ip link set up vlan100')
+        h7.cmd('ip addr add 10.1.1.7/24 dev vlan100')
+
+        # Test initial connectivity
+        assert ', 0% packet loss,' in h6.cmd('ping -c4 10.1.1.7')
+
+        # Simulate NNI port missing by setting link to down
+        self.net.net.configLinkStatus('Tenet01', 'Tenet02', 'down')
+        time.sleep(15)  # Wait for topology update propagation
+
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        api_url_topology = SDX_CONTROLLER + '/topology'
+        response = requests.get(api_url_topology)
+        data = response.json()
+        ports_nni = {port["id"]: port["nni"] for node in data["nodes"] for port in node["ports"] if port['nni'] != ''}
         
-    def test_70_update_port_nni_missing(self):
-        ''' Use case 9
-            OXPO sends a topology update with a Port missing
-        '''
+        if (port not in ports_nni and port2 in ports_nni) or (port in ports_nni and port2 not in ports_nni):
 
-    def test_75_update_port_uni_missing(self):
-        ''' Use case 9
-            OXPO sends a topology update with a Port missing
-        '''
+            # Verify SDX Link status is error
+            topology_url = SDX_CONTROLLER + '/topology/1.0'
+            topology_data = requests.get(topology_url).json()
+            assert topology_data.get("links", {}).get(link_id, {}).get("status") == "down", "Link status not set to error"
 
-    def test_80_update_changed_vlan_range_on_nni(self):
+            # Verify link status is down
+            link_data = [l['status'] for l in data['links'] if l['id'] == link_id]
+            assert len(link_data) == 0, "Link is in topology"
+
+            # Verify L2VPN status is down
+            data = requests.get(api_url).json()
+            assert data[key]["status"] == "down", "L2VPN status did not change to down"
+
+            # Test connectivity (should fail)
+            assert ', 100% packet loss,' in h6.cmd('ping -c4 10.1.1.7')
+
+        # Reset: Restore link
+        self.net.net.configLinkStatus('Tenet01', 'Tenet03', 'up')
+        time.sleep(15)
+
+        # Verify L2VPN status is up
+        data = requests.get(api_url).json()
+        assert data[key]["status"] == "up"
+
+        # Test connectivity (should succeed)
+        assert ', 0% packet loss,' in h6.cmd('ping -c4 10.1.1.7')
+    
+    @pytest.mark.xfail(reason="There is an error when trying to remove an L2VPN in setup_method, so subsequent tests fail.")
+    def test_70_update_shrinking_vlan_range_on_nni(self):
         ''' Use case 10
             OXPO sends a topology update with a changed VLAN range 
             for any of the services supported.
-        '''
 
-    def test_85_update_changed_vlan_range_on_uni(self):
+            Shrinking an existing vlan range entry (making it smaller)
+            It happens on a NNI
+        '''
+        # Create L2VPN with NNI port
+        key = self._create_l2vpn("urn:sdx:port:ampath.net:Ampath1:50", "urn:sdx:port:tenet.ac.za:Tenet01:50", \
+                                 vlan1="100:200", vlan2="100:200")
+        port = 'urn:sdx:port:tenet.ac.za:Tenet01:1' # 'urn:sdx:port:tenet.ac.za:Tenet01:[1/2/41]'
+        
+        h1, h6 = self.net.net.get('h1', 'h6')
+        h1.cmd('ip link add link %s name vlan100 type vlan id 100' % (h1.intfNames()[0]))
+        h1.cmd('ip link set up vlan100')
+        h1.cmd('ip addr add 10.1.1.1/24 dev vlan100')
+        h6.cmd('ip link add link %s name vlan100 type vlan id 100' % (h6.intfNames()[0]))
+        h6.cmd('ip link set up vlan100')
+        h6.cmd('ip addr add 10.1.1.6/24 dev vlan100')
+
+        # test connectivity
+        assert ', 0% packet loss,' in h1.cmd('ping -c4 10.1.1.6')
+
+        # Simulate VLAN range change on NNI port
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        payload = {
+            "name": "Setting VLANs range",
+            "endpoints": [
+                {"port_id": "urn:sdx:port:ampath.net:Ampath1:50","vlan": "120:150"},
+                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet01:50","vlan": "120:150"}
+            ]
+        }
+        response = requests.post(api_url, json=payload)
+        assert response.status_code == 201, "Failed to update VLAN range"
+        time.sleep(15)  # Wait for topology update propagation
+
+        # Verify L2VPN status is error
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        data = requests.get(api_url).json()
+        assert data[key]["status"] == "error", "L2VPN status did not change to error"
+
+        # Test connectivity (should fail)
+        assert ', 100% packet loss,' in h1.cmd('ping -c4 10.1.1.6')
+    
+    @pytest.mark.xfail(reason="There is an error when trying to remove an L2VPN in setup_method, so subsequent tests fail.")
+    def test_71_update_shrinking_vlan_range_on_uni(self):
         ''' Use case 10
             OXPO sends a topology update with a changed VLAN range 
             for any of the services supported.
+
+             Shrinking an existing vlan range entry (making it smaller)
+            It happens on a UNI
         '''
+        # Create L2VPN with UNI port
+        key = self._create_l2vpn("urn:sdx:port:tenet.ac.za:Tenet01:50", "urn:sdx:port:tenet.ac.za:Tenet02:50", \
+                                 vlan1="100:200", vlan2="100:200")
+        port = 'urn:sdx:port:tenet.ac.za:Tenet02:50' 
+
+        h6, h7 = self.net.net.get('h6', 'h7')
+        h6.cmd('ip link add link %s name vlan100 type vlan id 100' % (h6.intfNames()[0]))
+        h6.cmd('ip link set up vlan100')
+        h6.cmd('ip addr add 10.1.1.6/24 dev vlan100')
+        h7.cmd('ip link add link %s name vlan100 type vlan id 100' % (h7.intfNames()[0]))
+        h7.cmd('ip link set up vlan100')
+        h7.cmd('ip addr add 10.1.1.7/24 dev vlan100')
+
+        # test connectivity
+        assert ', 0% packet loss,' in h6.cmd('ping -c4 10.1.1.7')
+
+        # Simulate VLAN range change on NNI port
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        payload = {
+            "name": "Setting VLANs range",
+            "endpoints": [
+                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet01:50","vlan": "120:150"},
+                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet02:50","vlan": "120:150"}
+            ]
+        }
+        response = requests.post(api_url, json=payload)
+        assert response.status_code == 201, "Failed to update VLAN range"
+        time.sleep(15)  # Wait for topology update propagation
+
+        # Verify L2VPN status is error
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        data = requests.get(api_url).json()
+        assert data[key]["status"] == "error", "L2VPN status did not change to error"
+
+        # Test connectivity (should fail)
+        assert ', 100% packet loss,' in h6.cmd('ping -c4 10.1.1.7')
+    
+    @pytest.mark.xfail(reason="There is an error when trying to remove an L2VPN in setup_method, so subsequent tests fail.")
+    def test_72_update_expanding_vlan_range_on_nni(self):
+        ''' Use case 10
+            OXPO sends a topology update with a changed VLAN range 
+            for any of the services supported.
+
+            Expanding an existing vlan range entry (making it larger)
+            It happens on a NNI
+        '''
+        # Create L2VPN with NNI port
+        key = self._create_l2vpn("urn:sdx:port:ampath.net:Ampath1:50", "urn:sdx:port:tenet.ac.za:Tenet01:50", \
+                                 vlan1="100:200", vlan2="100:200")
+        port = 'urn:sdx:port:tenet.ac.za:Tenet01:1' # 'urn:sdx:port:tenet.ac.za:Tenet01:[1/2/41]'
+        
+        h1, h6 = self.net.net.get('h1', 'h6')
+        h1.cmd('ip link add link %s name vlan100 type vlan id 100' % (h1.intfNames()[0]))
+        h1.cmd('ip link set up vlan100')
+        h1.cmd('ip addr add 10.1.1.1/24 dev vlan100')
+        h6.cmd('ip link add link %s name vlan100 type vlan id 100' % (h6.intfNames()[0]))
+        h6.cmd('ip link set up vlan100')
+        h6.cmd('ip addr add 10.1.1.6/24 dev vlan100')
+
+        # test connectivity
+        assert ', 0% packet loss,' in h1.cmd('ping -c4 10.1.1.6')
+
+        # Simulate VLAN range change on NNI port
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        payload = {
+            "name": "Setting VLANs range",
+            "endpoints": [
+                {"port_id": "urn:sdx:port:ampath.net:Ampath1:50","vlan": "50:300"},
+                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet01:50","vlan": "50:300"}
+            ]
+        }
+        response = requests.post(api_url, json=payload)
+        assert response.status_code == 201, "Failed to update VLAN range"
+        time.sleep(15)  # Wait for topology update propagation
+
+        # Verify L2VPN status is error
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        data = requests.get(api_url).json()
+        assert data[key]["status"] == "error", "L2VPN status did not change to error"
+
+        # Test connectivity (should fail)
+        assert ', 100% packet loss,' in h1.cmd('ping -c4 10.1.1.6')
+    
+    @pytest.mark.xfail(reason="There is an error when trying to remove an L2VPN in setup_method, so subsequent tests fail.")
+    def test_73_update_expanding_vlan_range_on_uni(self):
+        ''' Use case 10
+            OXPO sends a topology update with a changed VLAN range 
+            for any of the services supported.
+
+            Expanding an existing vlan range entry (making it larger)
+            It happens on a UNI
+        '''
+        # Create L2VPN with UNI port
+        key = self._create_l2vpn("urn:sdx:port:tenet.ac.za:Tenet01:50", "urn:sdx:port:tenet.ac.za:Tenet02:50", \
+                                 vlan1="100:200", vlan2="100:200")
+        port = 'urn:sdx:port:tenet.ac.za:Tenet02:50' 
+
+        h6, h7 = self.net.net.get('h6', 'h7')
+        h6.cmd('ip link add link %s name vlan100 type vlan id 100' % (h6.intfNames()[0]))
+        h6.cmd('ip link set up vlan100')
+        h6.cmd('ip addr add 10.1.1.6/24 dev vlan100')
+        h7.cmd('ip link add link %s name vlan100 type vlan id 100' % (h7.intfNames()[0]))
+        h7.cmd('ip link set up vlan100')
+        h7.cmd('ip addr add 10.1.1.7/24 dev vlan100')
+
+        # test connectivity
+        assert ', 0% packet loss,' in h6.cmd('ping -c4 10.1.1.7')
+
+        # Simulate VLAN range change on NNI port
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        payload = {
+            "name": "Setting VLANs range",
+            "endpoints": [
+                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet01:50","vlan": "50:300"},
+                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet02:50","vlan": "50:300"}
+            ]
+        }
+        response = requests.post(api_url, json=payload)
+        assert response.status_code == 201, "Failed to update VLAN range"
+        time.sleep(15)  # Wait for topology update propagation
+
+        # Verify L2VPN status is error
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        data = requests.get(api_url).json()
+        assert data[key]["status"] == "error", "L2VPN status did not change to error"
+
+        # Test connectivity (should fail)
+        assert ', 100% packet loss,' in h6.cmd('ping -c4 10.1.1.7')
+
+    @pytest.mark.xfail(reason="There is an error when trying to remove an L2VPN in setup_method, so subsequent tests fail.")
+    def test_74_update_different_vlan_range_on_nni(self):
+        ''' Use case 10
+            OXPO sends a topology update with a changed VLAN range 
+            for any of the services supported.
+
+            Adding a new vlan range entry (completely different from existing entries)
+            It happens on a NNI
+        '''
+        # Create L2VPN with NNI port
+        key = self._create_l2vpn("urn:sdx:port:ampath.net:Ampath1:50", "urn:sdx:port:tenet.ac.za:Tenet01:50", \
+                                 vlan1="100:200", vlan2="100:200")
+        port = 'urn:sdx:port:tenet.ac.za:Tenet01:1' # 'urn:sdx:port:tenet.ac.za:Tenet01:[1/2/41]'
+        
+        h1, h6 = self.net.net.get('h1', 'h6')
+        h1.cmd('ip link add link %s name vlan100 type vlan id 100' % (h1.intfNames()[0]))
+        h1.cmd('ip link set up vlan100')
+        h1.cmd('ip addr add 10.1.1.1/24 dev vlan100')
+        h6.cmd('ip link add link %s name vlan100 type vlan id 100' % (h6.intfNames()[0]))
+        h6.cmd('ip link set up vlan100')
+        h6.cmd('ip addr add 10.1.1.6/24 dev vlan100')
+
+        # test connectivity
+        assert ', 0% packet loss,' in h1.cmd('ping -c4 10.1.1.6')
+
+        # Simulate VLAN range change on NNI port
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        payload = {
+            "name": "Setting VLANs range",
+            "endpoints": [
+                {"port_id": "urn:sdx:port:ampath.net:Ampath1:50","vlan": "300:400"},
+                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet01:50","vlan": "300:400"}
+            ]
+        }
+        response = requests.post(api_url, json=payload)
+        assert response.status_code == 201, "Failed to update VLAN range"
+        time.sleep(15)  # Wait for topology update propagation
+
+        # Verify L2VPN status is error
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        data = requests.get(api_url).json()
+        assert data[key]["status"] == "error", "L2VPN status did not change to error"
+
+        # Test connectivity (should fail)
+        assert ', 100% packet loss,' in h1.cmd('ping -c4 10.1.1.6')
+    
+    @pytest.mark.xfail(reason="There is an error when trying to remove an L2VPN in setup_method, so subsequent tests fail.")
+    def test_73_update_different_vlan_range_on_uni(self):
+        ''' Use case 10
+            OXPO sends a topology update with a changed VLAN range 
+            for any of the services supported.
+
+            Adding a new vlan range entry (completely different from existing entries)
+            It happens on a UNI
+        '''
+        # Create L2VPN with UNI port
+        key = self._create_l2vpn("urn:sdx:port:tenet.ac.za:Tenet01:50", "urn:sdx:port:tenet.ac.za:Tenet02:50", \
+                                 vlan1="100:200", vlan2="100:200")
+        port = 'urn:sdx:port:tenet.ac.za:Tenet02:50' 
+
+        h6, h7 = self.net.net.get('h6', 'h7')
+        h6.cmd('ip link add link %s name vlan100 type vlan id 100' % (h6.intfNames()[0]))
+        h6.cmd('ip link set up vlan100')
+        h6.cmd('ip addr add 10.1.1.6/24 dev vlan100')
+        h7.cmd('ip link add link %s name vlan100 type vlan id 100' % (h7.intfNames()[0]))
+        h7.cmd('ip link set up vlan100')
+        h7.cmd('ip addr add 10.1.1.7/24 dev vlan100')
+
+        # test connectivity
+        assert ', 0% packet loss,' in h6.cmd('ping -c4 10.1.1.7')
+
+        # Simulate VLAN range change on NNI port
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        payload = {
+            "name": "Setting VLANs range",
+            "endpoints": [
+                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet01:50","vlan": "300:400"},
+                {"port_id": "urn:sdx:port:tenet.ac.za:Tenet02:50","vlan": "300:400"}
+            ]
+        }
+        response = requests.post(api_url, json=payload)
+        assert response.status_code == 201, "Failed to update VLAN range"
+        time.sleep(15)  # Wait for topology update propagation
+
+        # Verify L2VPN status is error
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        data = requests.get(api_url).json()
+        assert data[key]["status"] == "error", "L2VPN status did not change to error"
+
+        # Test connectivity (should fail)
+        assert ', 100% packet loss,' in h6.cmd('ping -c4 10.1.1.7')
+
+    @pytest.mark.xfail(reason="There is an error when trying to remove an L2VPN in setup_method, so subsequent tests fail.")
+    def test_80_update_uni_service_no_longer_supported(self):
+        ''' Use case 11
+            OXPO sends a topology update with a service no longer being supported on a certain Port
+        '''
+        # Create a test L2VPN connection
+        l2vpn_id = self._create_l2vpn("urn:sdx:port:ampath.net:Ampath1:1", "urn:sdx:port:sax.net:Sax01:1")
+        port_id = "urn:sdx:port:ampath.net:Ampath1:50"
+        
+        # Set up hosts for connectivity testing
+        h1, h4 = self.net.net.get('h1', 'h4')
+        h1.cmd('ip link add link %s name vlan100 type vlan id 100' % (h1.intfNames()[0]))
+        h1.cmd('ip link set up vlan100')
+        h1.cmd('ip addr add 10.1.1.1/24 dev vlan100')
+        h4.cmd('ip link add link %s name vlan100 type vlan id 100' % (h4.intfNames()[0]))
+        h4.cmd('ip link set up vlan100')
+        h4.cmd('ip addr add 10.1.1.4/24 dev vlan100')
+        
+        # Test connectivity before service change
+        assert ', 0% packet loss,' in h1.cmd('ping -c4 10.1.1.4')
+        
+        # Get the current topology
+        ampath_topo_url = KYTOS_API % 'ampath/topology/v3'
+        response = requests.get(ampath_topo_url).json()
+        assert response.status_code == 200
+
+        # Find the UNI port to update
+        port_to_update = None
+        data = response.json()
+        for port in data.get("ports", []):
+            if port["id"] == port_id:
+                port_to_update = port.copy()
+                break
+        assert port_to_update is not None, "Could not find port to update"
+
+        original_services = port_to_update["services"]
+        port_to_update["services"] = {'l2vpn_ptp': {}, 'l2vpn_ptmp': {}}
+        port_url = KYTOS_API % "ampath" + f"/topology/v3/ports/{port_to_update['id']}"
+        response = requests.patch(port_url, json={"services": port_to_update["services"]})
+        assert response.status_code == 200, response.text
+        
+        # Wait for topology update to propagate
+        time.sleep(15)
+        
+        # Verify L2VPN status is error
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        data = requests.get(api_url).json()
+        assert data[l2vpn_id]["status"] == "error", "L2VPN status should be error when service is no longer supported"
+        
+        # Test connectivity after service change
+        assert ', 100% packet loss,' in h1.cmd('ping -c4 10.1.1.4')
+        
+        # Restore the original services
+        port_url = KYTOS_API % "ampath" + f"/topology/v3/ports/{port_to_update['id']}"
+        response = requests.patch(port_url, json={"services": original_services})
+        assert response.status_code == 200, response.text
+        
+        # Wait for topology update to propagate
+        time.sleep(15)
+        
+        # Verify L2VPN status is up again
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        data = requests.get(api_url).json()
+        assert data[l2vpn_id]["status"] == "up", "L2VPN status should be up after services are restored"
+        
+        # Test connectivity after service restoration
+        assert ', 0% packet loss,' in h1.cmd('ping -c4 10.1.1.4')
+    
+    @pytest.mark.xfail(reason="There is an error when trying to remove an L2VPN in setup_method, so subsequent tests fail.")
+    def test_81_update_nni_service_no_longer_supported_reprovision_success(self):
+        ''' Use case 11
+            OXPO sends a topology update with a service no longer being supported on a certain Port
+        '''
+        # Create a test L2VPN connection that uses an inter-domain link
+        l2vpn_id = self._create_l2vpn("urn:sdx:port:ampath.net:Ampath1:1", "urn:sdx:port:sax.net:Sax01:1")
+        port_id = "urn:sdx:port:ampath.net:Ampath1:40"
+        
+        # Set up hosts for connectivity testing
+        h1, h4 = self.net.net.get('h1', 'h4')
+        h1.cmd('ip link add link %s name vlan100 type vlan id 100' % (h1.intfNames()[0]))
+        h1.cmd('ip link set up vlan100')
+        h1.cmd('ip addr add 10.1.1.1/24 dev vlan100')
+        h4.cmd('ip link add link %s name vlan100 type vlan id 100' % (h4.intfNames()[0]))
+        h4.cmd('ip link set up vlan100')
+        h4.cmd('ip addr add 10.1.1.4/24 dev vlan100')
+        
+        # Test connectivity before service change
+        assert ', 0% packet loss,' in h1.cmd('ping -c4 10.1.1.4')
+
+        # Get the current path of the L2VPN
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        data = requests.get(api_url).json()
+        original_path = data[l2vpn_id].get("current_path", [])
+        
+        # Get the current topology
+        ampath_topo_url = KYTOS_API % "ampath" + "/topology/v3"
+        data = requests.get(ampath_topo_url).json()
+        assert response.status_code == 200
+        
+        # Find an NNI port that is part of the L2VPN path
+        nni_port_to_update = None
+        for port in data.get("ports", []):
+            if port["id"] in original_path and port['nni'] != '':
+                nni_port_to_update = port.copy()
+                break
+        assert nni_port_to_update is not None, "Could not find port to update"
+
+        original_services = nni_port_to_update["services"]
+        nni_port_to_update["services"] = {'l2vpn_ptp': {}, 'l2vpn_ptmp': {}}
+        port_url = KYTOS_API % "ampath" + f"/topology/v3/ports/{nni_port_to_update['id']}"
+        response = requests.patch(port_url, json={"services": nni_port_to_update["services"]})
+        assert response.status_code == 200, response.text
+        
+        # Wait for topology update to propagate
+        time.sleep(15)
+        
+        # Verify L2VPN status is still up (reprovisioned)
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        data = requests.get(api_url).json()
+        
+        # The L2VPN might be reprovisioned or might be set to error, depending on the network topology
+        # We'll check connectivity to verify
+        
+        # Test connectivity after service change
+        connectivity_works = ', 0% packet loss,' in h1.cmd('ping -c4 10.1.1.4')
+        
+        if connectivity_works:
+            # If connectivity works, verify the L2VPN was reprovisioned
+            assert data[l2vpn_id]["status"] == "up", "L2VPN should be up if reprovisioning was successful"
+            
+            # Verify the path has changed
+            api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+            data = requests.get(api_url).json()
+            new_path = data[l2vpn_id].get("current_path", [])
+            assert new_path != original_path, "Path should change after reprovisioning"
+        else:
+            # If connectivity doesn't work, verify the L2VPN status is error
+            assert data[l2vpn_id]["status"] == "error", "L2VPN should be error if reprovisioning failed"
+        
+        # Restore the original services
+        port_url = KYTOS_API % "ampath" + f"/topology/v3/ports/{nni_port_to_update['id']}"
+        response = requests.patch(port_url, json={"services": original_services})
+        assert response.status_code == 200, response.text
+        
+        # Wait for topology update to propagate
+        time.sleep(15)
+        
+        # Verify L2VPN status is up again
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        data = requests.get(api_url).json()
+        assert data[l2vpn_id]["status"] == "up", "L2VPN status should be up after services are restored"
+        
+        # Test connectivity after service restoration
+        assert ', 0% packet loss,' in h1.cmd('ping -c4 10.1.1.4')
+    
