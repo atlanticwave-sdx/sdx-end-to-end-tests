@@ -107,7 +107,7 @@ class TestE2EReturnCodes:
         assert service_id != None, data
 
         # give enough time to SDX-Controller to propagate change to OXPs
-        time.sleep(10)
+        time.sleep(5)
 
         response = requests.get(api_url)
         assert response.status_code == 200, response.text
