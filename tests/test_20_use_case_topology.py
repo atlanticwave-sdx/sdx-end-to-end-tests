@@ -141,7 +141,7 @@ class TestE2ETopologyUseCases:
         assert len(initial_topology["nodes"]) == len(updated_topology["nodes"]), "Number of nodes changed"
         assert len(initial_topology["links"]) == len(updated_topology["links"]), "Number of links changed"
 
-    @pytest.mark.xfail(reason="Connectivity is not verified with a PING test between hosts after creating an L2VPN")
+    @pytest.mark.xfail(reason="Connectivity is not verified with a PING test between hosts after verifying that the L2VPN status remains up")
     def test_011_intra_domain_link_down_path_found(self):
         """
         Test Use Case 1: Intra-domain Link Status Change (Down)
@@ -191,13 +191,13 @@ class TestE2ETopologyUseCases:
         h6, h7 = self.net.net.get('h6', 'h7')
         h6.cmd('ip link add link %s name vlan200 type vlan id 200' % (h6.intfNames()[0]))
         h6.cmd('ip link set up vlan200')
-        h6.cmd('ip addr add 10.1.1.6/24 dev vlan200')
+        h6.cmd('ip addr add 10.2.1.6/24 dev vlan200')
         h7.cmd('ip link add link %s name vlan200 type vlan id 200' % (h7.intfNames()[0]))
         h7.cmd('ip link set up vlan200')
-        h7.cmd('ip addr add 10.1.1.7/24 dev vlan200')
+        h7.cmd('ip addr add 10.2.1.7/24 dev vlan200')
 
         # test connectivity
-        assert ', 0% packet loss,' in h6.cmd('ping -c4 10.1.1.7')
+        assert ', 0% packet loss,' in h6.cmd('ping -c4 10.2.1.7')
         
         # Step 2: Set an intra-domain link down
         self.net.net.configLinkStatus('Tenet01', 'Tenet02', 'down')
@@ -223,7 +223,7 @@ class TestE2ETopologyUseCases:
         assert l2vpn_status == "up", f"SDX should find another path using links from SAX"
         
         # test connectivity
-        assert ', 0% packet loss,' in h6.cmd('ping -c4 10.1.1.7')
+        assert ', 0% packet loss,' in h6.cmd('ping -c4 10.2.1.7')
 
         # Step 6: Verify no topology changes were made (number of nodes and links should be the same)
         assert len(initial_topology["nodes"]) == len(updated_topology["nodes"]), "Number of nodes changed"
