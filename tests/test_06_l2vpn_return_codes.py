@@ -65,7 +65,6 @@ class TestE2EReturnCodes:
         assert data["status"] == "up", str(data)
         assert len(data["endpoints"]) == 2, str(data)
         assert len(data["current_path"]) > 0, str(data)
-        service_id = response.json()["service_id"]
     
     def test_011_create_l2vpn_vlan_translation(self):
         """
@@ -94,7 +93,6 @@ class TestE2EReturnCodes:
         assert data["status"] == "up", str(data)
         assert len(data["endpoints"]) == 2, str(data)
         assert len(data["current_path"]) > 0, str(data)
-        service_id = response.json()["service_id"]
 
         # allow time for SDX-Controller propagate changes
         time.sleep(5)
@@ -105,7 +103,6 @@ class TestE2EReturnCodes:
         assert data["status"] == "up", str(data)
         assert len(data["endpoints"]) == 2, str(data)
         assert len(data["current_path"]) > 0, str(data)
-        service_id = response.json()["service_id"]
 
         # allow time for SDX-Controller propagate changes
         time.sleep(5)
