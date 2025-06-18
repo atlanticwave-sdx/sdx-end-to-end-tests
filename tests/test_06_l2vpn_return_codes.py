@@ -54,6 +54,18 @@ class TestE2EReturnCodes:
         }
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
+        service_id = response.json()["service_id"]
+
+        # allow time for SDX-Controller propagate changes
+        time.sleep(5)
+
+        response = requests.get(f"{api_url}/{service_id}")
+        assert response.status_code == 200, response.text
+        data = response.json()[service_id]
+        assert data["status"] == "up", str(data)
+        assert len(data["endpoints"]) == 2, str(data)
+        assert len(data["current_path"]) > 0, str(data)
+        service_id = response.json()["service_id"]
     
     def test_011_create_l2vpn_vlan_translation(self):
         """
