@@ -55,10 +55,10 @@ class TestE2EL2VPN:
         }
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
-        response_json = response.json()
-        assert response_json.get("status") == "under provisioning", response_json
-        service_id = response_json.get("service_id")
-        assert service_id != None, response_json
+        data = response.json()
+        assert data.get("status") == "under provisioning", str(data)
+        service_id = data.get("service_id")
+        assert service_id != None, str(data)
 
         # give enough time to SDX-Controller to propagate change to OXPs
         time.sleep(10)
@@ -66,10 +66,10 @@ class TestE2EL2VPN:
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         response = requests.get(api_url)
         assert response.status_code == 200, response.text
-        response_json = response.json()
-        assert len(response_json) == 1, response_json
-        assert service_id in response_json, response_json
-        assert response_json[service_id].get("status") == "up", response_json
+        data = response.json()
+        assert len(data) == 1, str(data)
+        assert service_id in data, str(data)
+        assert data[service_id].get("status") == "up", str(data)
 
         # make sure OXPs have the new EVCs
         ## -> ampath
@@ -80,10 +80,11 @@ class TestE2EL2VPN:
         for evc in evcs.values():
             if evc.get("uni_a", {}).get("tag", {}).get("value") == 300:
                 found += 1
-        assert found == 1, evcs
+        assert found == 1, str(evcs)
         ## -> sax
         response = requests.get("http://sax:8181/api/kytos/mef_eline/v2/evc/")
-        assert len(response.json()) == 1, response.json()
+        data = response.json()
+        assert len(data) == 1, str(data)
         ## -> tenet
         response = requests.get("http://tenet:8181/api/kytos/mef_eline/v2/evc/")
         evcs = response.json()
@@ -92,7 +93,7 @@ class TestE2EL2VPN:
         for evc in evcs.values():
             if evc.get("uni_z", {}).get("tag", {}).get("value") == 300:
                 found += 1
-        assert found == 1, evcs
+        assert found == 1, str(evcs)
 
     def test_030_create_l2vpn_with_any_vlan(self):
         """Test creating a L2VPN successfully."""
@@ -112,10 +113,10 @@ class TestE2EL2VPN:
         }
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
-        response_json = response.json()
-        assert response_json.get("status") == "under provisioning", response_json
-        service_id = response_json.get("service_id")
-        assert service_id != None, response_json
+        data = response.json()
+        assert data.get("status") == "under provisioning", str(data)
+        service_id = data.get("service_id")
+        assert service_id != None, str(data)
 
         # give enough time to SDX-Controller to propagate change to OXPs
         time.sleep(10)
@@ -123,10 +124,10 @@ class TestE2EL2VPN:
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         response = requests.get(api_url)
         assert response.status_code == 200, response.text
-        response_json = response.json()
-        assert len(response_json) == 2, response_json
-        assert service_id in response_json, response_json
-        assert response_json[service_id].get("status") == "up", response_json
+        data = response.json()
+        assert len(data) == 2, str(data)
+        assert service_id in data, str(data)
+        assert data[service_id].get("status") == "up", str(data)
 
         # make sure OXPs have the new EVCs
         ## -> ampath
@@ -149,7 +150,7 @@ class TestE2EL2VPN:
         for evc in evcs.values():
             if evc.get("uni_a", {}).get("tag", {}).get("value") == 100:
                 found += 1
-        assert found == 0, evcs
+        assert found == 0, str(evcs)
         ## -> tenet
         response = requests.get("http://tenet:8181/api/kytos/mef_eline/v2/evc/")
         evcs = response.json()
@@ -157,7 +158,7 @@ class TestE2EL2VPN:
         for evc in evcs.values():
             if evc.get("uni_z", {}).get("tag", {}).get("value") == 100:
                 found += 1
-        assert found == 0, evcs
+        assert found == 0, str(evcs)
 
         # wait a few seconds to allow status change from UNDER_PROVISIONG to UP
         time.sleep(5)
@@ -204,7 +205,7 @@ class TestE2EL2VPN:
         for evc in evcs.values():
             if evc.get("uni_a", {}).get("tag", {}).get("value") == 100:
                 found += 1
-        assert found == 1, evcs
+        assert found == 1, str(evcs)
         ## -> tenet
         response = requests.get("http://tenet:8181/api/kytos/mef_eline/v2/evc/")
         evcs = response.json()
@@ -212,7 +213,7 @@ class TestE2EL2VPN:
         for evc in evcs.values():
             if evc.get("uni_z", {}).get("tag", {}).get("value") == 100:
                 found += 1
-        assert found == 1, evcs
+        assert found == 1, str(evcs)
 
     def test_045_edit_port_l2vpn_successfully(self):
         """Test change the port_id of endpoints of an existing L2vpn connection."""
@@ -221,10 +222,8 @@ class TestE2EL2VPN:
         data = response.json()
         key = list(data.keys())[0]
         current_data = data[key]  
-        assert current_data["endpoints"][0]["port_id"] in ["urn:sdx:port:tenet.ac.za:Tenet03:50", \
-                                                           "urn:sdx:port:ampath.net:Ampath3:50"], str(data)
-        assert current_data["endpoints"][1]["port_id"] in ["urn:sdx:port:tenet.ac.za:Tenet03:50", \
-                                                           "urn:sdx:port:ampath.net:Ampath3:50"], str(data)
+        assert current_data["endpoints"][0]["port_id"] == "urn:sdx:port:ampath.net:Ampath3:50", str(data)
+        assert current_data["endpoints"][1]["port_id"] == "urn:sdx:port:tenet.ac.za:Tenet03:50", str(data)
 
         # Change port_id
         payload = {

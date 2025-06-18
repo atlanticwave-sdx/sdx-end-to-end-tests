@@ -148,9 +148,9 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
         data = response.json()
-        assert data.get("status") == "under provisioning", data
+        assert data.get("status") == "under provisioning", str(data)
         service_id = data.get("service_id")
-        assert service_id != None, data
+        assert service_id != None, str(data)
 
         # give enough time to SDX-Controller to propagate change to OXPs
         time.sleep(5)
@@ -158,9 +158,9 @@ class TestE2EReturnCodes:
         response = requests.get(api_url)
         assert response.status_code == 200, response.text
         data = response.json()
-        assert len(data) == 1, data
-        assert service_id in data, data
-        assert data[service_id].get("status") == "up", data
+        assert len(data) == 1, str(data)
+        assert service_id in data, str(data)
+        assert data[service_id].get("status") == "up", str(data)
 
         #
         # make sure OXPs have the new EVCs
@@ -172,7 +172,7 @@ class TestE2EReturnCodes:
         for evc in evcs.values():
             if evc.get("uni_a", {}).get("tag", {}).get("value") == [[600, 999]]:
                 found += 1
-        assert found == 1, evcs
+        assert found == 1, str(evcs)
         ## -> sax
         response = requests.get("http://sax:8181/api/kytos/mef_eline/v2/evc/")
         evcs = response.json()
@@ -181,7 +181,7 @@ class TestE2EReturnCodes:
         for evc in evcs.values():
             if evc.get("uni_z", {}).get("tag", {}).get("value") == [[600, 999]]:
                 found += 1
-        assert found == 1, evcs
+        assert found == 1, str(evcs)
 
     def test_014_create_l2vpn_with_vlan_untagged(self):
         """
@@ -200,9 +200,9 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
         data = response.json()
-        assert data.get("status") == "under provisioning", data
+        assert data.get("status") == "under provisioning", str(data)
         service_id = data.get("service_id")
-        assert service_id != None, data
+        assert service_id != None, str(data)
 
         # give enough time to SDX-Controller to propagate change to OXPs
         time.sleep(5)
@@ -210,9 +210,9 @@ class TestE2EReturnCodes:
         response = requests.get(api_url)
         assert response.status_code == 200, response.text
         data = response.json()
-        assert len(data) == 1, data
-        assert service_id in data, data
-        assert data[service_id].get("status") == "up", data
+        assert len(data) == 1, str(data)
+        assert service_id in data, str(data)
+        assert data[service_id].get("status") == "up", str(data)
 
         #
         # make sure OXPs have the new EVCs
@@ -224,7 +224,7 @@ class TestE2EReturnCodes:
         for evc in evcs.values():
             if evc.get("uni_a", {}).get("tag", {}).get("value") == 599:
                 found += 1
-        assert found == 1, evcs
+        assert found == 1, str(evcs)
         ## -> sax
         response = requests.get("http://sax:8181/api/kytos/mef_eline/v2/evc/")
         evcs = response.json()
@@ -237,7 +237,7 @@ class TestE2EReturnCodes:
         for evc in evcs.values():
             if evc.get("uni_z", {}).get("tag", {}).get("value") == "untagged":
                 found += 1
-        assert found == 1, evcs
+        assert found == 1, str(evcs)
 
     def _future_date(self, isoformat_time=True):
         # Get the current time
