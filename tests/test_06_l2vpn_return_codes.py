@@ -130,6 +130,17 @@ class TestE2EReturnCodes:
         }
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
+        service_id = response.json()["service_id"]
+
+        # allow time for SDX-Controller propagate changes
+        time.sleep(5)
+
+        response = requests.get(f"{api_url}/{service_id}")
+        assert response.status_code == 200, response.text
+        data = response.json()[service_id]
+        assert data["status"] == "up", str(data)
+        assert len(data["endpoints"]) == 2, str(data)
+        assert len(data["current_path"]) > 0, str(data)
     
     def test_013_create_l2vpn_with_vlan_range(self):
         """
@@ -482,7 +493,7 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
 
-        time.sleep(30)
+        time.sleep(5)
 
         response = requests.post(api_url, json=payload)
         assert response.status_code == 409, response.text
@@ -506,6 +517,17 @@ class TestE2EReturnCodes:
         }
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
+        service_id = response.json()["service_id"]
+
+        # give enough time to SDX-Controller to propagate change to OXPs
+        time.sleep(5)
+
+        response = requests.get(api_url)
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert len(data) == 1, str(data)
+        assert service_id in data, str(data)
+        assert data[service_id].get("status") == "up", str(data)
 
     def test_051_create_l2vpn_with_min_bw_out_of_range(self):
         """
