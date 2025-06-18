@@ -216,9 +216,6 @@ class TestE2EL2VPN:
 
     def test_045_edit_port_l2vpn_successfully(self):
         """Test change the port_id of endpoints of an existing L2vpn connection."""
-        # wait a few seconds to allow status change from UNDER_PROVISIONG to UP
-        time.sleep(5)
-
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         response = requests.get(api_url)
         data = response.json()
@@ -228,17 +225,17 @@ class TestE2EL2VPN:
                                                            "urn:sdx:port:ampath.net:Ampath3:50"], str(data)
         assert current_data["endpoints"][1]["port_id"] in ["urn:sdx:port:tenet.ac.za:Tenet03:50", \
                                                            "urn:sdx:port:ampath.net:Ampath3:50"], str(data)
-            
+
         # Change port_id
         payload = {
             "name": "New port_id in endpoints",
             "endpoints": [
                 {
-                    "port_id": "urn:sdx:port:tenet.ac.za:Tenet01:41",
+                    "port_id": "urn:sdx:port:ampath.net:Ampath2:50",
                     "vlan": "100",
                 },
                 {
-                    "port_id": "urn:sdx:port:sax.net:Sax01:40",
+                    "port_id": "urn:sdx:port:sax.net:Sax02:50",
                     "vlan": "100",
                 }
             ]
@@ -246,11 +243,27 @@ class TestE2EL2VPN:
         response = requests.patch(f"{api_url}/{key}", json=payload)
         assert response.status_code == 201, response.text
 
-        response = requests.get(api_url + f'/{key}/archived')
-        data = response.json()
-        current_data = data[key] 
-        assert current_data["current_path"][0]["port_id"] == "urn:sdx:port:tenet.ac.za:Tenet01:41", str(data)
-        assert current_data["current_path"][-1]["port_id"] == "urn:sdx:port:sax.net:Sax01:40", str(data)
+        # give enough time to SDX-Controller to propagate change to OXPs
+        time.sleep(10)
+
+        response = requests.get(f"{api_url}/{key}")
+        data = response.json()[key]
+        assert data["status"] == "up", str(data)
+        assert len(data["endpoints"]) == 2, str(data)
+        assert data["endpoints"][0]["port_id"] == "urn:sdx:port:ampath.net:Ampath2:50", str(data)
+        assert data["endpoints"][1]["port_id"] == "urn:sdx:port:sax.net:Sax02:50", str(data)
+
+
+        # make sure OXPs have the new EVCs
+        ## -> ampath
+        response = requests.get("http://ampath:8181/api/kytos/mef_eline/v2/evc/")
+        assert len(response.json()) == 2, response.text
+        ## -> sax
+        response = requests.get("http://sax:8181/api/kytos/mef_eline/v2/evc/")
+        assert len(response.json()) == 2, response.text
+        ## -> tenet
+        response = requests.get("http://tenet:8181/api/kytos/mef_eline/v2/evc/")
+        assert len(response.json()) == 1, response.text
 
     def test_050_delete_l2vpn_successfully(self):
         """Test deleting all two L2VPNs successfully."""
@@ -262,7 +275,7 @@ class TestE2EL2VPN:
         # Delete all L2VPN
         for key in data:
             response = requests.delete(f"{api_url}/{key}")
-            assert response.status_code == 200, response.text
+            assert response.status_code == 200, f"{response.text=} previous_data={data}"
 
         # give enough time to SDX-Controller to propagate change to OXPs
         time.sleep(10)
