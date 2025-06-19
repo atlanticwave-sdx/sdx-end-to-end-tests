@@ -230,7 +230,7 @@ class TestE2ETopologyUseCases:
         assert len(initial_topology["links"]) == len(updated_topology["links"]), "Number of links changed"
 
     @pytest.mark.xfail(reason="The L2VPN status remains up after changing the status of an associated node to down")
-    def test_020_node_down(self):
+    def test_040_node_down(self):
         """
         Test Use Case 4: Node Status Change (Down)
         
@@ -239,13 +239,6 @@ class TestE2ETopologyUseCases:
         2. SDX Controller updates affected L2VPN statuses to "error"
         3. SDX Controller refuses to provision new services on the node
         """
-        def set_node(node, status, target):
-            if status == 'down':
-                node.cmd(f"ovs-vsctl set-controller {node.name} {target}")
-                node.cmd(f"ovs-vsctl get-controller {node.name}") 
-            else:
-                node.cmd(f"ovs-vsctl set-controller {node.name} {target}")
-                node.cmd(f"ovs-vsctl get-controller {node.name}")
 
         # Create a L2VPN that will use the node
         l2vpn_api_url = SDX_CONTROLLER + '/l2vpn/1.0'
@@ -286,27 +279,17 @@ class TestE2ETopologyUseCases:
         assert ', 0% packet loss,' in h1.cmd('ping -c4 10.3.1.6')
 
         node = self.net.net.get('Ampath1')
-        config = node.cmd('ovs-vsctl get-controller', node.name).split()
-        set_node(node, 'down', "tcp:127.0.0.1:6654")
+        
+        config = self.net.change_node_status('down')
 
         time.sleep(15)
         
         # status of the node should be down
         api_url_topo = SDX_CONTROLLER + '/topology'
-        response = requests.get(api_url_topo)
-        assert response.status_code == 200, response.text
-        nodes = response.json().get('nodes', [])
-        for n in nodes:
-            if n['name'] == node:
-                assert n['status'] == "down", f"Node {n['name']} status should be down, but is {n['status']}"
-                break
+        response_topology = requests.get(api_url_topo)
 
-        response = requests.get(l2vpn_api_url)
-        l2vpn_status = response.json().get(l2vpn_id).get("status")
-        assert l2vpn_status == "down", f"L2VPN status should be error, but is {l2vpn_status}"
-
-        # test connectivity
-        assert ', 100% packet loss,' in h1.cmd('ping -c4 10.3.1.6')
+        response_l2vpn = requests.get(l2vpn_api_url)
+        l2vpn_status = response_l2vpn.json().get(l2vpn_id).get("status")
 
         # Step 5: Attempt to provision a new L2VPN using the down node
         new_l2vpn_payload = {
@@ -322,21 +305,30 @@ class TestE2ETopologyUseCases:
                 }
             ]
         }
-        response = requests.post(l2vpn_api_url, json=new_l2vpn_payload)
-        assert response.status_code != 201, "Should not be able to provision L2VPN on a down node"
+        response_reprovision = requests.post(l2vpn_api_url, json=new_l2vpn_payload)
 
-        ### Reset
-        set_node(node, 'up', " ".join(config))
+        ### Reset (before any assertion to avoid failures)
+        self.net.change_node_status('up', config)
+
+        assert response_topology.status_code == 200, response.text
+        nodes = response_topology.json().get('nodes', [])
+        for n in nodes:
+            if n['name'] == node:
+                assert n['status'] == "down", f"Node {n['name']} status should be down, but is {n['status']}"
+                break
+
+        assert l2vpn_status == "down", f"L2VPN status should be error, but is {l2vpn_status}"
+
+        assert response_reprovision.status_code != 201, "Should not be able to provision L2VPN on a down node"
 
         time.sleep(15)
 
         # status of the node should be up
-        response = requests.get(api_url_topo)
-        assert response.status_code == 200, response.text
-        nodes = response.json().get('nodes', [])
+        response_topology = requests.get(api_url_topo)
+        assert response_topology.status_code == 200, response.text
+        nodes = response_topology.json().get('nodes', [])
         for n in nodes:
             if n['name'] == node:
                 assert n['status'] == "up", f"Node {n['name']} status should be up, but is {n['status']}"
                 break
-
 
