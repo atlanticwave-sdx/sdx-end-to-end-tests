@@ -56,7 +56,7 @@ class TestE2ETopologyUseCases:
     @pytest.mark.xfail(reason="The status of the L2VPN doesn't change to down after setting the link to down")
     def test_010_intra_domain_link_down(self):
         """
-        Test Use Case 1: Intra-domain Link Status Change (Down)
+        Use Case 1: Intra-domain Link Status Change (Down)
         
         Verify that when an intra-domain link goes down:
         - SDX Controller updates the SDX topology with the link status
@@ -144,7 +144,7 @@ class TestE2ETopologyUseCases:
     @pytest.mark.xfail(reason="Connectivity is not verified with a PING test between hosts after verifying that the L2VPN status remains up")
     def test_011_intra_domain_link_down_path_found(self):
         """
-        Test Use Case 1: Intra-domain Link Status Change (Down)
+        Use Case 1: Intra-domain Link Status Change (Down)
         
         Verify that when an intra-domain link goes down:
         - SDX Controller updates the SDX topology with the link status
@@ -232,7 +232,7 @@ class TestE2ETopologyUseCases:
     @pytest.mark.xfail(reason="The L2VPN status remains up after changing the status of an associated node to down")
     def test_040_node_down(self):
         """
-        Test Use Case 4: Node Status Change (Down)
+        Use Case 4: Node Status Change (Down)
         
         Verify that when a node goes down:
         1. SDX Controller updates the status of the node, its ports, and links
@@ -278,9 +278,10 @@ class TestE2ETopologyUseCases:
         # test connectivity
         assert ', 0% packet loss,' in h1.cmd('ping -c4 10.3.1.6')
 
-        node = self.net.net.get('Ampath1')
+        node_name = 'Ampath1'
+        node = self.net.net.get(node_name)
         
-        config = self.net.change_node_status('down')
+        config = self.net.change_node_status(node_name)
 
         time.sleep(15)
         
@@ -289,7 +290,7 @@ class TestE2ETopologyUseCases:
         response_topology = requests.get(api_url_topo)
 
         response_l2vpn = requests.get(l2vpn_api_url)
-        l2vpn_status = response_l2vpn.json().get(l2vpn_id).get("status")
+        l2vpn_status = response_l2vpn.json()
 
         # Step 5: Attempt to provision a new L2VPN using the down node
         new_l2vpn_payload = {
@@ -305,10 +306,10 @@ class TestE2ETopologyUseCases:
                 }
             ]
         }
-        response_reprovision = requests.post(l2vpn_api_url, json=new_l2vpn_payload)
+        response_newl2vpn = requests.post(l2vpn_api_url, json=new_l2vpn_payload)
 
         ### Reset (before any assertion to avoid failures)
-        self.net.change_node_status('up', config)
+        self.net.change_node_status(node_name, config)
 
         assert response_topology.status_code == 200, response.text
         nodes = response_topology.json().get('nodes', [])
@@ -317,9 +318,9 @@ class TestE2ETopologyUseCases:
                 assert n['status'] == "down", f"Node {n['name']} status should be down, but is {n['status']}"
                 break
 
-        assert l2vpn_status == "down", f"L2VPN status should be error, but is {l2vpn_status}"
+        assert l2vpn_status.get(l2vpn_id).get("status") == "down", str(l2vpn_status)
 
-        assert response_reprovision.status_code != 201, "Should not be able to provision L2VPN on a down node"
+        assert response_newl2vpn.status_code != 201, str(response_newl2vpn)
 
         time.sleep(15)
 
