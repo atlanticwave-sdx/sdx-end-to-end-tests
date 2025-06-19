@@ -56,3 +56,10 @@ class NetworkTest:
     def stop(self):
         self.net.stop()
         #mininet.clean.cleanup()
+
+    def change_node_status(self, node, target='tcp:127.0.0.1:6654'):
+        node = self.net.get(node)
+        config = node.cmd('ovs-vsctl get-controller', node.name).split()
+        node.cmd(f"ovs-vsctl set-controller {node.name} {target}")
+        node.cmd(f"ovs-vsctl get-controller {node.name}") 
+        return " ".join(config)

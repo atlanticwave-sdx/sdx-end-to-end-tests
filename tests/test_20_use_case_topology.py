@@ -56,7 +56,7 @@ class TestE2ETopologyUseCases:
     @pytest.mark.xfail(reason="The status of the L2VPN doesn't change to down after setting the link to down")
     def test_010_intra_domain_link_down(self):
         """
-        Test Use Case 1: Intra-domain Link Status Change (Down)
+        Use Case 1: Intra-domain Link Status Change (Down)
         
         Verify that when an intra-domain link goes down:
         - SDX Controller updates the SDX topology with the link status
@@ -144,7 +144,7 @@ class TestE2ETopologyUseCases:
     @pytest.mark.xfail(reason="Connectivity is not verified with a PING test between hosts after verifying that the L2VPN status remains up")
     def test_011_intra_domain_link_down_path_found(self):
         """
-        Test Use Case 1: Intra-domain Link Status Change (Down)
+        Use Case 1: Intra-domain Link Status Change (Down)
         
         Verify that when an intra-domain link goes down:
         - SDX Controller updates the SDX topology with the link status
@@ -229,5 +229,107 @@ class TestE2ETopologyUseCases:
         assert len(initial_topology["nodes"]) == len(updated_topology["nodes"]), "Number of nodes changed"
         assert len(initial_topology["links"]) == len(updated_topology["links"]), "Number of links changed"
 
+    @pytest.mark.xfail(reason="The L2VPN status remains up after changing the status of an associated node to down")
+    def test_040_node_down(self):
+        """
+        Use Case 4: Node Status Change (Down)
+        
+        Verify that when a node goes down:
+        1. SDX Controller updates the status of the node, its ports, and links
+        2. SDX Controller updates affected L2VPN statuses to "error"
+        3. SDX Controller refuses to provision new services on the node
+        """
 
+        # Create a L2VPN that will use the node
+        l2vpn_api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        l2vpn_payload = {
+            "name": "Test L2VPN for node down",
+            "endpoints": [
+                {
+                    "port_id": "urn:sdx:port:ampath.net:Ampath1:50",
+                    "vlan": "300",
+                },
+                {
+                    "port_id": "urn:sdx:port:tenet.ac.za:Tenet01:50",
+                    "vlan": "300",
+                }
+            ]
+        }
+        response = requests.post(l2vpn_api_url, json=l2vpn_payload)
+        assert response.status_code == 201, response.text
+        l2vpn_id = response.json().get("service_id")
+
+        # Wait for L2VPN to be provisioned
+        time.sleep(5)
+
+        response = requests.get(l2vpn_api_url)
+        assert response.status_code == 200, response.text
+        l2vpn_status = response.json().get(l2vpn_id).get("status")
+        assert l2vpn_status == "up", f"L2VPN status should be up, but is {l2vpn_status}"
+
+        h1, h6 = self.net.net.get('h1', 'h6')
+        h1.cmd('ip link add link %s name vlan300 type vlan id 300' % (h1.intfNames()[0]))
+        h1.cmd('ip link set up vlan300')
+        h1.cmd('ip addr add 10.3.1.1/24 dev vlan300')
+        h6.cmd('ip link add link %s name vlan300 type vlan id 300' % (h6.intfNames()[0]))
+        h6.cmd('ip link set up vlan300')
+        h6.cmd('ip addr add 10.3.1.6/24 dev vlan300')
+
+        # test connectivity
+        assert ', 0% packet loss,' in h1.cmd('ping -c4 10.3.1.6')
+
+        node_name = 'Ampath1'
+        node = self.net.net.get(node_name)
+        
+        config = self.net.change_node_status(node_name)
+
+        time.sleep(15)
+        
+        # status of the node should be down
+        api_url_topo = SDX_CONTROLLER + '/topology'
+        response_topology = requests.get(api_url_topo)
+
+        response_l2vpn = requests.get(l2vpn_api_url)
+        l2vpn_status = response_l2vpn.json()
+
+        # Step 5: Attempt to provision a new L2VPN using the down node
+        new_l2vpn_payload = {
+            "name": "Test L2VPN for node down - should fail",
+            "endpoints": [
+                {
+                    "port_id": "urn:sdx:port:ampath.net:Ampath1:50",
+                    "vlan": "301",
+                },
+                {
+                    "port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50",
+                    "vlan": "301",
+                }
+            ]
+        }
+        response_newl2vpn = requests.post(l2vpn_api_url, json=new_l2vpn_payload)
+
+        ### Reset (before any assertion to avoid failures)
+        self.net.change_node_status(node_name, config)
+
+        assert response_topology.status_code == 200, response.text
+        nodes = response_topology.json().get('nodes', [])
+        for n in nodes:
+            if n['name'] == node:
+                assert n['status'] == "down", f"Node {n['name']} status should be down, but is {n['status']}"
+                break
+
+        assert l2vpn_status.get(l2vpn_id).get("status") == "down", str(l2vpn_status)
+
+        assert response_newl2vpn.status_code != 201, str(response_newl2vpn)
+
+        time.sleep(15)
+
+        # status of the node should be up
+        response_topology = requests.get(api_url_topo)
+        assert response_topology.status_code == 200, response.text
+        nodes = response_topology.json().get('nodes', [])
+        for n in nodes:
+            if n['name'] == node:
+                assert n['status'] == "up", f"Node {n['name']} status should be up, but is {n['status']}"
+                break
 
