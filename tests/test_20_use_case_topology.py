@@ -294,7 +294,7 @@ class TestE2ETopologyUseCases:
         assert ', 0% packet loss,' in h1.cmd('ping -c4 10.3.1.6')
 
     @pytest.mark.xfail(reason="The L2VPN status remains up after changing the status of an associated node to down")
-    def testtest_021_port_in_inter_domain_link_down_no_reprov(self):
+    def test_021_port_in_inter_domain_link_down_no_reprov(self):
         """ 
         Use case 2: OXPO sends a topology update with a Port Down and that port is part of an inter-domain link.
         """
