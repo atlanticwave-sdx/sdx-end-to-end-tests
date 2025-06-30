@@ -516,3 +516,18 @@ class TestE2EL2VPN:
                 ping_result = hostA.cmd(f"ping6 -c4 -i0.2 2001:db8:ffff:{vlan_id}::2")
                 assert ', 0% packet loss,' in ping_result, f"{vlan_id=} {dataA=} {dataZ=} {ping_result=}"
             vlan_inc += 1
+
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        data = requests.get(api_url).json()
+        assert len(data) == 15, str(data)
+
+        # Delete all L2VPN
+        for key in data:
+            response = requests.delete(f"{api_url}/{key}")
+            assert response.status_code == 200, response.text
+
+        time.sleep(3)
+
+        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        data = requests.get(api_url).json()
+        assert len(data) == 0, str(data)

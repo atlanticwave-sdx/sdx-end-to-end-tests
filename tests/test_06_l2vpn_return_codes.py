@@ -33,6 +33,7 @@ class TestE2EReturnCodes:
         response_json = response.json()
         for l2vpn in response_json:
             response = requests.delete(api_url+f'/{l2vpn}')
+            assert response.status_code == 200, response.text
 
         # wait for L2VPN to be actually deleted
         time.sleep(2)
