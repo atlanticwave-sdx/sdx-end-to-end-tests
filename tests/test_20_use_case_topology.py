@@ -257,8 +257,10 @@ class TestE2ETopologyUseCases:
 
         response = requests.get(l2vpn_api_url)
         assert response.status_code == 200, response.text
-        l2vpn_status = response.json().get(l2vpn_id).get("status")
+        l2vpn_data = response.json().get(l2vpn_id)
+        l2vpn_status = l2vpn_data.get("status")
         assert l2vpn_status == "up", f"L2VPN status should be up, but is {l2vpn_status}"
+        first_path = l2vpn_data['current_path']
 
         h1, h6 = self.net.net.get('h1', 'h6')
         h1.cmd('ip link add link %s name vlan300 type vlan id 300' % (h1.intfNames()[0]))
@@ -276,8 +278,12 @@ class TestE2ETopologyUseCases:
 
         time.sleep(15)
 
-        data = requests.get(l2vpn_api_url).json()
-        assert data[l2vpn_id]["status"] == "up"
+        response = requests.get(l2vpn_api_url)
+        assert response.status_code == 200, response.text
+        l2vpn_data = response.json().get(l2vpn_id)
+        l2vpn_status = l2vpn_data.get("status")
+        assert l2vpn_status == "up"
+        assert l2vpn_data['current_path'] != first_path
 
         # test connectivity
         assert ', 0% packet loss,' in h1.cmd('ping -c4 10.3.1.6')
@@ -293,7 +299,7 @@ class TestE2ETopologyUseCases:
         # test connectivity
         assert ', 0% packet loss,' in h1.cmd('ping -c4 10.3.1.6')
 
-    @pytest.mark.xfail(reason="The L2VPN status remains up after changing the status of an associated node to down")
+    @pytest.mark.xfail(reason="The L2VPN is removed after changing nodes to down")
     def test_021_port_in_inter_domain_link_down_no_reprov(self):
         """ 
         Use case 2: OXPO sends a topology update with a Port Down and that port is part of an inter-domain link.
@@ -341,9 +347,9 @@ class TestE2ETopologyUseCases:
         Ampath1.intf('Ampath1-eth40').ifconfig('down') 
 
         #  Cause no further (re)provisioning to be possible       
-        Tenet01 = self.net.net.get('Tenet01')
+        Tenet01, Tenet02 = self.net.net.get('Tenet01', 'Tenet02')
         Tenet01.intf('Tenet01-eth41').ifconfig('down') 
-        Tenet01.intf('Tenet01-eth1').ifconfig('down') 
+        Tenet02.intf('Tenet02-eth41').ifconfig('down') 
 
         time.sleep(15)
 
@@ -354,7 +360,7 @@ class TestE2ETopologyUseCases:
         ports = {p['name']: p['status'] for node in topology['nodes'] for p in node['ports']}
         assert ports['Ampath1-eth40'] == 'down'
         assert ports['Tenet01-eth41'] == 'down'
-        assert ports['Tenet01-eth1'] == 'down'
+        assert ports['Tenet02-eth41'] == 'down'
 
         data = requests.get(l2vpn_api_url).json() 
 
@@ -364,7 +370,7 @@ class TestE2ETopologyUseCases:
         ### Reset
         Ampath1.intf('Ampath1-eth40').ifconfig('up') 
         Tenet01.intf('Tenet01-eth41').ifconfig('up') 
-        Tenet01.intf('Tenet01-eth1').ifconfig('up') 
+        Tenet02.intf('Tenet02-eth41').ifconfig('up') 
 
         time.sleep(15)
 
@@ -374,7 +380,7 @@ class TestE2ETopologyUseCases:
         ports = {p['name']: p['status'] for node in topology['nodes'] for p in node['ports']}
         assert ports['Ampath1-eth40'] == 'up'
         assert ports['Tenet01-eth41'] == 'up'
-        assert ports['Tenet01-eth1'] == 'up'
+        assert ports['Tenet02-eth41'] == 'up'
 
         assert data[l2vpn_id]["status"] == "down", str(data)
 
