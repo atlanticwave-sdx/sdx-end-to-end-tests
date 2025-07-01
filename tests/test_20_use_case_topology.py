@@ -382,6 +382,7 @@ class TestE2ETopologyUseCases:
         assert ports['Tenet01-eth41'] == 'up'
         assert ports['Tenet02-eth41'] == 'up'
 
+        assert l2vpn_id in data
         assert data[l2vpn_id]["status"] == "down", str(data)
 
         data = requests.get(l2vpn_api_url).json()
