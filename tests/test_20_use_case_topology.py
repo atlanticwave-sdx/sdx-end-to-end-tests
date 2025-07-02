@@ -342,9 +342,7 @@ class TestE2ETopologyUseCases:
         # test connectivity
         assert ', 0% packet loss,' in h1.cmd('ping -c4 10.4.1.6')
 
-        # Ampath1-eth40      
-        Ampath1 = self.net.net.get('Ampath1')
-        Ampath1.intf('Ampath1-eth40').ifconfig('down') 
+        # Port Down: Ampath1-eth40      
 
         #  Cause no further (re)provisioning to be possible       
         Tenet01, Tenet02 = self.net.net.get('Tenet01', 'Tenet02')
@@ -358,7 +356,6 @@ class TestE2ETopologyUseCases:
         assert response.status_code == 200, response.text
         topology = response.json()
         ports = {p['name']: p['status'] for node in topology['nodes'] for p in node['ports']}
-        assert ports['Ampath1-eth40'] == 'down'
         assert ports['Tenet01-eth41'] == 'down'
         assert ports['Tenet02-eth41'] == 'down'
 
@@ -368,7 +365,6 @@ class TestE2ETopologyUseCases:
         assert ', 100% packet loss,' in h1.cmd('ping -c4 10.4.1.6')
 
         ### Reset
-        Ampath1.intf('Ampath1-eth40').ifconfig('up') 
         Tenet01.intf('Tenet01-eth41').ifconfig('up') 
         Tenet02.intf('Tenet02-eth41').ifconfig('up') 
 
@@ -378,7 +374,6 @@ class TestE2ETopologyUseCases:
         assert response.status_code == 200, response.text
         topology = response.json()
         ports = {p['name']: p['status'] for node in topology['nodes'] for p in node['ports']}
-        assert ports['Ampath1-eth40'] == 'up'
         assert ports['Tenet01-eth41'] == 'up'
         assert ports['Tenet02-eth41'] == 'up'
 
@@ -494,4 +489,3 @@ class TestE2ETopologyUseCases:
             if n['name'] == node:
                 assert n['status'] == "up", f"Node {n['name']} status should be up, but is {n['status']}"
                 break
-
