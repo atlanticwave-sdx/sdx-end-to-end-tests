@@ -229,21 +229,14 @@ class TestE2ETopologyUseCases:
         assert len(initial_topology["nodes"]) == len(updated_topology["nodes"]), "Number of nodes changed"
         assert len(initial_topology["links"]) == len(updated_topology["links"]), "Number of links changed"
 
-    @pytest.mark.xfail(reason="The L2VPN status remains up after changing the status of an associated node to down")
-    def test_040_node_down(self):
-        """
-        Use Case 4: Node Status Change (Down)
-        
-        Verify that when a node goes down:
-        1. SDX Controller updates the status of the node, its ports, and links
-        2. SDX Controller updates affected L2VPN statuses to "error"
-        3. SDX Controller refuses to provision new services on the node
+    def test_020_port_in_inter_domain_link_down(self):
+        """ 
+        Use case 2: OXPO sends a topology update with a Port Down and that port is part of an inter-domain link.
         """
 
-        # Create a L2VPN that will use the node
         l2vpn_api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         l2vpn_payload = {
-            "name": "Test L2VPN for node down",
+            "name": "Test L2VPN for port down",
             "endpoints": [
                 {
                     "port_id": "urn:sdx:port:ampath.net:Ampath1:50",
@@ -264,8 +257,10 @@ class TestE2ETopologyUseCases:
 
         response = requests.get(l2vpn_api_url)
         assert response.status_code == 200, response.text
-        l2vpn_status = response.json().get(l2vpn_id).get("status")
+        l2vpn_data = response.json().get(l2vpn_id)
+        l2vpn_status = l2vpn_data.get("status")
         assert l2vpn_status == "up", f"L2VPN status should be up, but is {l2vpn_status}"
+        first_path = l2vpn_data['current_path']
 
         h1, h6 = self.net.net.get('h1', 'h6')
         h1.cmd('ip link add link %s name vlan300 type vlan id 300' % (h1.intfNames()[0]))
@@ -277,6 +272,168 @@ class TestE2ETopologyUseCases:
 
         # test connectivity
         assert ', 0% packet loss,' in h1.cmd('ping -c4 10.3.1.6')
+        
+        Ampath1 = self.net.net.get('Ampath1')
+        Ampath1.intf('Ampath1-eth40').ifconfig('down') 
+
+        time.sleep(15)
+
+        response = requests.get(l2vpn_api_url)
+        assert response.status_code == 200, response.text
+        l2vpn_data = response.json().get(l2vpn_id)
+        l2vpn_status = l2vpn_data.get("status")
+        assert l2vpn_status == "up"
+        assert l2vpn_data['current_path'] != first_path
+
+        # test connectivity
+        assert ', 0% packet loss,' in h1.cmd('ping -c4 10.3.1.6')
+
+        ### Reset 
+        Ampath1.intf('Ampath1-eth40').ifconfig('up') 
+
+        time.sleep(15)
+
+        data = requests.get(l2vpn_api_url).json()
+        assert data[l2vpn_id]["status"] == "up"
+
+        # test connectivity
+        assert ', 0% packet loss,' in h1.cmd('ping -c4 10.3.1.6')
+
+    @pytest.mark.xfail(reason="The L2VPN is removed after changing nodes to down")
+    def test_021_port_in_inter_domain_link_down_no_reprov(self):
+        """ 
+        Use case 2: OXPO sends a topology update with a Port Down and that port is part of an inter-domain link.
+        """
+
+        l2vpn_api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        l2vpn_payload = {
+            "name": "Test L2VPN for port down",
+            "endpoints": [
+                {
+                    "port_id": "urn:sdx:port:ampath.net:Ampath1:50",
+                    "vlan": "400",
+                },
+                {
+                    "port_id": "urn:sdx:port:tenet.ac.za:Tenet01:50",
+                    "vlan": "400",
+                }
+            ]
+        }
+        response = requests.post(l2vpn_api_url, json=l2vpn_payload)
+        assert response.status_code == 201, response.text
+        l2vpn_id = response.json().get("service_id")
+
+        # Wait for L2VPN to be provisioned
+        time.sleep(5)
+
+        response = requests.get(l2vpn_api_url)
+        assert response.status_code == 200, response.text
+        l2vpn_status = response.json().get(l2vpn_id).get("status")
+        assert l2vpn_status == "up", f"L2VPN status should be up, but is {l2vpn_status}"
+
+        h1, h6 = self.net.net.get('h1', 'h6')
+        h1.cmd('ip link add link %s name vlan400 type vlan id 400' % (h1.intfNames()[0]))
+        h1.cmd('ip link set up vlan400')
+        h1.cmd('ip addr add 10.4.1.1/24 dev vlan400')
+        h6.cmd('ip link add link %s name vlan400 type vlan id 400' % (h6.intfNames()[0]))
+        h6.cmd('ip link set up vlan400')
+        h6.cmd('ip addr add 10.4.1.6/24 dev vlan400')
+
+        # test connectivity
+        assert ', 0% packet loss,' in h1.cmd('ping -c4 10.4.1.6')
+
+        # Port Down: Ampath1-eth40      
+
+        #  Cause no further (re)provisioning to be possible       
+        Tenet01, Tenet02 = self.net.net.get('Tenet01', 'Tenet02')
+        Tenet01.intf('Tenet01-eth41').ifconfig('down') 
+        Tenet02.intf('Tenet02-eth41').ifconfig('down') 
+
+        time.sleep(15)
+
+        api_url = SDX_CONTROLLER + '/topology'
+        response = requests.get(api_url)
+        assert response.status_code == 200, response.text
+        topology = response.json()
+        ports = {p['name']: p['status'] for node in topology['nodes'] for p in node['ports']}
+        assert ports['Tenet01-eth41'] == 'down'
+        assert ports['Tenet02-eth41'] == 'down'
+
+        data = requests.get(l2vpn_api_url).json() 
+
+        # test connectivity
+        assert ', 100% packet loss,' in h1.cmd('ping -c4 10.4.1.6')
+
+        ### Reset
+        Tenet01.intf('Tenet01-eth41').ifconfig('up') 
+        Tenet02.intf('Tenet02-eth41').ifconfig('up') 
+
+        time.sleep(15)
+
+        response = requests.get(api_url)
+        assert response.status_code == 200, response.text
+        topology = response.json()
+        ports = {p['name']: p['status'] for node in topology['nodes'] for p in node['ports']}
+        assert ports['Tenet01-eth41'] == 'up'
+        assert ports['Tenet02-eth41'] == 'up'
+
+        assert l2vpn_id in data
+        assert data[l2vpn_id]["status"] == "down", str(data)
+
+        data = requests.get(l2vpn_api_url).json()
+        assert data[l2vpn_id]["status"] == "up", str(data)
+
+        # test connectivity
+        assert ', 0% packet loss,' in h1.cmd('ping -c4 10.4.1.6')
+
+    @pytest.mark.xfail(reason="The L2VPN status remains up after changing the status of an associated node to down")
+    def test_040_node_down(self):
+        """
+        Use Case 4: Node Status Change (Down)
+        
+        Verify that when a node goes down:
+        1. SDX Controller updates the status of the node, its ports, and links
+        2. SDX Controller updates affected L2VPN statuses to "error"
+        3. SDX Controller refuses to provision new services on the node
+        """
+
+        # Create a L2VPN that will use the node
+        l2vpn_api_url = SDX_CONTROLLER + '/l2vpn/1.0'
+        l2vpn_payload = {
+            "name": "Test L2VPN for node down",
+            "endpoints": [
+                {
+                    "port_id": "urn:sdx:port:ampath.net:Ampath1:50",
+                    "vlan": "500",
+                },
+                {
+                    "port_id": "urn:sdx:port:tenet.ac.za:Tenet01:50",
+                    "vlan": "500",
+                }
+            ]
+        }
+        response = requests.post(l2vpn_api_url, json=l2vpn_payload)
+        assert response.status_code == 201, response.text
+        l2vpn_id = response.json().get("service_id")
+
+        # Wait for L2VPN to be provisioned
+        time.sleep(5)
+
+        response = requests.get(l2vpn_api_url)
+        assert response.status_code == 200, response.text
+        l2vpn_status = response.json().get(l2vpn_id).get("status")
+        assert l2vpn_status == "up", f"L2VPN status should be up, but is {l2vpn_status}"
+
+        h1, h6 = self.net.net.get('h1', 'h6')
+        h1.cmd('ip link add link %s name vlan500 type vlan id 500' % (h1.intfNames()[0]))
+        h1.cmd('ip link set up vlan500')
+        h1.cmd('ip addr add 10.5.1.1/24 dev vlan500')
+        h6.cmd('ip link add link %s name vlan500 type vlan id 500' % (h6.intfNames()[0]))
+        h6.cmd('ip link set up vlan500')
+        h6.cmd('ip addr add 10.5.1.6/24 dev vlan500')
+
+        # test connectivity
+        assert ', 0% packet loss,' in h1.cmd('ping -c4 10.5.1.6')
 
         node_name = 'Ampath1'
         node = self.net.net.get(node_name)
@@ -298,11 +455,11 @@ class TestE2ETopologyUseCases:
             "endpoints": [
                 {
                     "port_id": "urn:sdx:port:ampath.net:Ampath1:50",
-                    "vlan": "301",
+                    "vlan": "501",
                 },
                 {
                     "port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50",
-                    "vlan": "301",
+                    "vlan": "501",
                 }
             ]
         }
@@ -332,4 +489,3 @@ class TestE2ETopologyUseCases:
             if n['name'] == node:
                 assert n['status'] == "up", f"Node {n['name']} status should be up, but is {n['status']}"
                 break
-
