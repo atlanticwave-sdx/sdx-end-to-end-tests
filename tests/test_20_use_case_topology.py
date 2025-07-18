@@ -301,7 +301,7 @@ class TestE2ETopologyUseCases:
         # test connectivity
         assert ', 0% packet loss,' in l2vpn_data['h'].cmd(l2vpn_data['ping_str'])
 
-    def test_030_uni_port_downn(self):
+    def test_030_uni_port_down(self):
         """ 
         Use case 3: OXPO sends a topology update with a Port Down and that port is an UNI for some L2VPN.
         """
@@ -404,3 +404,41 @@ class TestE2ETopologyUseCases:
             if n['name'] == node:
                 assert n['status'] == "up", f"Node {n['name']} status should be up, but is {n['status']}"
                 break
+
+    @pytest.mark.xfail(reason="The L2VPN status remains up after changing the status of an associated port to down")
+    def test_050_port_up_inter_domain(self):
+        """
+        Use Case 5: OXPO sends a topology update with a Port UP and that port is an inter-domain link.
+
+        Expected behavior:
+        SDX Controller: if the port UP can benefit the environment (L2VPNs were down because of the lack of paths),
+        activate the L2VPNs. If the port is just an addition (a new inter-domain path), do nothing. 
+        """
+        
+        l2vpn_data = self.create_new_l2vpn(vlan='700',node2='Tenet03')
+        l2vpn_id = l2vpn_data['id']
+
+        # Bring down a inter-domain port to simulate a scenario where L2VPNs might be down
+        # due to lack of paths, then bring it back up.
+        Tenet01 = self.net.net.get('Tenet01')
+        Tenet01.intf('Tenet01-eth2').ifconfig('down') 
+
+        time.sleep(15)
+
+        # Verify L2VPN status is down after link goes down
+        response = requests.get(API_URL)
+        assert response.status_code == 200, response.text
+        l2vpn_response = response.json()
+        assert l2vpn_response.get(l2vpn_id).get("status") == "down", "L2VPN status should be down after inter-domain port goes down"
+
+        # Bring the inter-domain port back up
+        Tenet01.intf('Tenet01-eth2').ifconfig('up') 
+
+        time.sleep(15)
+
+        # Verify L2VPN status is up after link comes back up
+        response = requests.get(API_URL)
+        assert response.status_code == 200, response.text
+        l2vpn_response = response.json()
+        assert l2vpn_response.get(l2vpn_id).get("status") == "up", "L2VPN status should be up after inter-domain port comes back up"
+        assert ', 0% packet loss,' in l2vpn_data['host1'].cmd(l2vpn_data['ping_str'])
