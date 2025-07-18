@@ -442,3 +442,40 @@ class TestE2ETopologyUseCases:
         l2vpn_response = response.json()
         assert l2vpn_response.get(l2vpn_id).get("status") == "up", "L2VPN status should be up after inter-domain port comes back up"
         assert ', 0% packet loss,' in l2vpn_data['host1'].cmd(l2vpn_data['ping_str'])
+
+    def test_060_port_up_uni(self):
+        """
+        Use Case 6: OXPO sends a topology update with a Port UP and that port is UNI for some L2VPNs.
+
+        Expected behavior:
+        SDX Controller: update the statuses involved. Use Case 3 is explicit saying the configs should not be removed in case of a Port Down 
+        which means the data plane config is already there.
+        """
+        
+        l2vpn_data = self.create_new_l2vpn(vlan='800')
+        l2vpn_id = l2vpn_data['id']
+
+        # Simulate UNI port going down
+        ampath_node = self.net.net.get('Ampath1')
+        ampath_node.intf('Ampath1-eth50').ifconfig('down')
+
+        time.sleep(15)
+
+        # Verify L2VPN status is down
+        response = requests.get(API_URL)
+        assert response.status_code == 200, response.text
+        l2vpn_response = response.json()
+        assert l2vpn_id in l2vpn_response
+        assert l2vpn_response.get(l2vpn_id).get("status") == "down", "L2VPN status should be down after UNI port goes down"
+
+        # Simulate UNI port coming back up
+        ampath_node.intf('Ampath1-eth50').ifconfig('up')
+
+        time.sleep(15)
+
+        # Verify L2VPN status is up again
+        response = requests.get(API_URL)
+        assert response.status_code == 200, response.text
+        l2vpn_response = response.json()
+        assert l2vpn_response.get(l2vpn_id).get("status") == "up", "L2VPN status should be up after UNI port comes back up"
+        assert ', 0% packet loss,' in l2vpn_data['h'].cmd(l2vpn_data['ping_str'])
