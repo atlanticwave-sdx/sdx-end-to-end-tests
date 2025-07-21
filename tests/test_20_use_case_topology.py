@@ -479,3 +479,38 @@ class TestE2ETopologyUseCases:
         l2vpn_response = response.json()
         assert l2vpn_response.get(l2vpn_id).get("status") == "up", str(l2vpn_response)
         assert ', 0% packet loss,' in l2vpn_data['h'].cmd(l2vpn_data['ping_str'])
+
+    def test_070_port_uni_up_no_l2vpn_associated(self):
+        """
+            Use case 7: OXPO sends a topology update with a Port UP and that port has no L2VPN associated with it. 
+            Expected behavior: For a UNI port, the SDX-Controller does nothing.
+        """
+        
+        port = 'urn:sdx:port:ampath.net:Ampath2:50'
+        response = requests.get(API_URL_TOPO)
+        data = response.json()
+        # Get UNI ports
+        ports = {port["id"] for node in data["nodes"] for port in node["ports"] if port['nni'] == ''} 
+        assert port in ports
+
+        # Port status to down initially
+        Ampath2 = self.net.net.get('Ampath2')
+        Ampath2.intf('Ampath2-eth50').ifconfig('down') 
+        
+        time.sleep(10)
+
+        # Create a L2VPN that is not associated with the port
+        l2vpn_data = self.create_new_l2vpn(vlan='800')
+        l2vpn_id = l2vpn_data['id']
+
+        path_ports = [p['port_id'] for p in l2vpn_data['data']['current_path']]
+        # port is not associated with the L2VPN 
+        assert port not in path_ports
+
+        # Update port UP to trigger topology update
+        Ampath2.intf('Ampath2-eth50').ifconfig('up') 
+        time.sleep(15)
+
+        # Verify no L2VPN was created or modified
+        final_data = requests.get(API_URL).json()
+        assert final_data[l2vpn_id] == l2vpn_data['data'], "L2VPN state changed unexpectedly"
