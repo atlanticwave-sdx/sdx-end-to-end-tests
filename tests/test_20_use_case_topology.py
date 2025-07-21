@@ -466,7 +466,7 @@ class TestE2ETopologyUseCases:
         assert response.status_code == 200, response.text
         l2vpn_response = response.json()
         assert l2vpn_id in l2vpn_response
-        assert l2vpn_response.get(l2vpn_id).get("status") == "down", "L2VPN status should be down after UNI port goes down"
+        assert l2vpn_response.get(l2vpn_id).get("status") == "down", str(l2vpn_response)
 
         # Simulate UNI port coming back up
         ampath_node.intf('Ampath1-eth50').ifconfig('up')
@@ -477,5 +477,5 @@ class TestE2ETopologyUseCases:
         response = requests.get(API_URL)
         assert response.status_code == 200, response.text
         l2vpn_response = response.json()
-        assert l2vpn_response.get(l2vpn_id).get("status") == "up", "L2VPN status should be up after UNI port comes back up"
+        assert l2vpn_response.get(l2vpn_id).get("status") == "up", str(l2vpn_response)
         assert ', 0% packet loss,' in l2vpn_data['h'].cmd(l2vpn_data['ping_str'])
