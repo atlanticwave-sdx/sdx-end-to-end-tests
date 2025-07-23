@@ -415,7 +415,7 @@ class TestE2ETopologyUseCases:
         activate the L2VPNs. If the port is just an addition (a new inter-domain path), do nothing. 
         """
         
-        l2vpn_data = self.create_new_l2vpn(vlan='700',node2='Tenet03')
+        l2vpn_data = self.create_new_l2vpn(vlan='500',node2='Tenet03')
         l2vpn_id = l2vpn_data['id']
 
         # Bring down a inter-domain port to simulate a scenario where L2VPNs might be down
@@ -452,7 +452,7 @@ class TestE2ETopologyUseCases:
         which means the data plane config is already there.
         """
         
-        l2vpn_data = self.create_new_l2vpn(vlan='800')
+        l2vpn_data = self.create_new_l2vpn(vlan='600')
         l2vpn_id = l2vpn_data['id']
 
         # Simulate UNI port going down
@@ -500,7 +500,7 @@ class TestE2ETopologyUseCases:
         time.sleep(10)
 
         # Create a L2VPN that is not associated with the port
-        l2vpn_data = self.create_new_l2vpn(vlan='800')
+        l2vpn_data = self.create_new_l2vpn(vlan='700')
         l2vpn_id = l2vpn_data['id']
 
         path_ports = [p['port_id'] for p in l2vpn_data['data']['current_path']]
@@ -525,7 +525,6 @@ class TestE2ETopologyUseCases:
         3. L2VPN status changes to down due to no alternate path exists,
         4. the Link is not exported by the OXP and SDX-LC,
         """
-        link_name = 'urn:sdx:link:tenet.ac.za:Tenet01/2_Tenet03/2'
         endp1 = 'Tenet01-eth2'
         endp2 = 'Tenet03-eth2'
 
@@ -537,14 +536,15 @@ class TestE2ETopologyUseCases:
         data = response.json()
         link_id = None
         for key, value in data['links'].items():
-            link_id = key
             endpoint_a = value["endpoint_a"]["name"]
             endpoint_b = value["endpoint_b"]["name"]
             if set([endpoint_a, endpoint_b]) == set([endp1, endp2]):
+               link_name = 'urn:sdx:link:tenet.ac.za:Tenet01/2_Tenet03/2'
+               link_id = key
                break
         assert link_id
 
-        l2vpn_data = self.create_new_l2vpn(vlan='900', node1='Tenet01', node2='Tenet03')
+        l2vpn_data = self.create_new_l2vpn(vlan='800', node1='Tenet01', node2='Tenet03')
         l2vpn_id = l2vpn_data['id']
 
         # Get initial topology version
@@ -604,8 +604,6 @@ class TestE2ETopologyUseCases:
         """
         Use case 8: Test Remove Link (because it was deleted by the OXP)
         """
-        
-        link_name = 'urn:sdx:link:tenet.ac.za:Tenet01/1_Tenet02/1'
         endp1 = 'Tenet01-eth1'
         endp2 = 'Tenet02-eth1'
 
@@ -617,14 +615,15 @@ class TestE2ETopologyUseCases:
         data = response.json()
         link_id = None
         for key, value in data['links'].items():
-            link_id = key
             endpoint_a = value["endpoint_a"]["name"]
             endpoint_b = value["endpoint_b"]["name"]
             if set([endpoint_a, endpoint_b]) == set([endp1, endp2]):
-               break
+                link_id = key
+                link_name = 'urn:sdx:link:tenet.ac.za:Tenet01/1_Tenet02/1'
+                break
         assert link_id
 
-        l2vpn_data = self.create_new_l2vpn(vlan='1000', node1='Tenet01', node2='Tenet02')
+        l2vpn_data = self.create_new_l2vpn(vlan='810', node1='Tenet01', node2='Tenet02')
         l2vpn_id = l2vpn_data['id']
 
         # Get initial topology version
