@@ -663,7 +663,6 @@ class TestE2ETopologyUseCases:
     def test_100_vlan_range_change(self):
         """
         Use Case 10: OXPO sends a topology update with a changed VLAN range is for any of the services supported.
-
         """
         # This test simulates changes in VLAN ranges reported by OXPs.
         # This will focus on the SDX Controller's reaction to valid/invalid VLAN range updates.
