@@ -53,6 +53,11 @@ class NetworkTest:
                 "up"
             )
 
+    def config_all_ports_up(self):
+        for sw in self.net.switches:
+            for intf in sw.intfNames():
+               sw.cmd(f'ip link set {intf} up')
+
     def stop(self):
         self.net.stop()
         #mininet.clean.cleanup()
