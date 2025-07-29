@@ -108,7 +108,7 @@ class TestE2ETopologyUseCases:
         # test connectivity
         assert ', 0% packet loss,' in h1.cmd(f"ping -c4 {add2}")
         return {'id':l2vpn_id, 'data':l2vpn_data, 'h':h1, 'ping_str':f"ping -c4 {add2}"}
-    '''
+    
     @pytest.mark.xfail(reason="The status of the L2VPN doesn't change to down after setting the link to down")
     def test_010_intra_domain_link_down(self):
         """
@@ -714,7 +714,6 @@ class TestE2ETopologyUseCases:
         l2vpn_response = response.json()
         assert l2vpn_response.get(l2vpn_id).get("status") == "down", "L2VPN status should be down/error due to unsupported service"
         assert ', 100% packet loss,' in l2vpn_data['h'].cmd(l2vpn_data['ping_str'])
-        '''
     
     def test_120_l2vpn_provisioning_failure(self):
         """
