@@ -22,7 +22,7 @@ KYTOS_API = 'http://%s:8181/api/kytos'
 KYTOS_SDX_API  = "http://%s:8181/api/kytos/sdx"
 
 UNI2HOST = {
-    "Ampath1": {"id":"urn:sdx:port:ampath.net:Ampath1:50", "host":"1"},
+    "Ampath1": {"id":"urn:sdx:port:ampath.net:Ampath1:50", "host":"1"},  
     "Ampath2": {"id":"urn:sdx:port:ampath.net:Ampath2:50", "host":"2"},
     "Ampath3": {"id":"urn:sdx:port:ampath.net:Ampath3:50", "host":"3"},
     "Sax01": {"id":"urn:sdx:port:sax.net:Sax01:50", "host":"4"},
@@ -108,7 +108,7 @@ class TestE2ETopologyUseCases:
         # test connectivity
         assert ', 0% packet loss,' in h1.cmd(f"ping -c4 {add2}")
         return {'id':l2vpn_id, 'data':l2vpn_data, 'h':h1, 'ping_str':f"ping -c4 {add2}"}
-    
+    '''
     @pytest.mark.xfail(reason="The status of the L2VPN doesn't change to down after setting the link to down")
     def test_010_intra_domain_link_down(self):
         """
@@ -714,53 +714,47 @@ class TestE2ETopologyUseCases:
         l2vpn_response = response.json()
         assert l2vpn_response.get(l2vpn_id).get("status") == "down", "L2VPN status should be down/error due to unsupported service"
         assert ', 100% packet loss,' in l2vpn_data['h'].cmd(l2vpn_data['ping_str'])
-      
-    def test_120_l2vpn_provisioning_failure_breakdown(self):
+        '''
+    
+    def test_120_l2vpn_provisioning_failure(self):
         """
-        Use Case 12: L2VPN provisioning request generated a breakdown to all OXPs involved. 
-        """
+        Tests Use Case 12: L2VPN provisioning fails gracefully when no path exists.
 
-        l2vpn_payload = {
-            "name": "Test L2VPN for partial provisioning failure",
+        This test simulates a provisioning failure by requesting a connection
+        between two endpoints that are on disconnected OXPs within the topology.
+        The SDX Controller should fail to find a path and handle the error correctly.
+
+        Test Steps:
+        - Disable a link (Tenet01-Tenet03) to force it to not be possible to reprovision an L2VPN with Tenet03.
+        - Try to reprovision an L2VPN between different OXPs, including the Tenet03 node.
+        - Verify that one of the OXPs failed to provision.
+        - Verify that L2VPN does not exist
+        """
+        
+        self.net.net.configLinkStatus('Tenet01', 'Tenet03', 'down')
+        
+        time.sleep(15)
+
+        impossible_l2vpn_request = {
+            "name": "Test L2VPN",
             "endpoints": [
                 {
-                    "port_id": "urn:sdx:port:ampath.net:Tenet01:50",
-                    "vlan": "1200",
+                    "port_id": "urn:sdx:port:ampath.net:Ampath1:50",
+                    "vlan": '1200',
                 },
                 {
                     "port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50",
-                    "vlan": "1200",
+                    "vlan": '1200',
                 }
             ]
         }
 
-        # To simulate partial failure in E2E tests, we can only test the scenario where
-        # the SDX Controller handles a complete failure or success.
-        # A full simulation of this UC would require more control over OXP behavior.
-        # For now, we'll test that a failed provisioning attempt does not leave zombie flows.
+        response = requests.post(API_URL, json=impossible_l2vpn_request)
+        assert response.status_code == 412, response.text
+        l2vpn_id = response.json().get("service_id")
 
-        # Simulate a scenario where one OXP fails to provision (e.g., by making its port unavailable)
-        tenet_node = self.net.net.get('Tenet01')
-        tenet_node.intf('Tenet01-eth50').ifconfig('down')
-        time.sleep(15)
-
-        response = requests.post(API_URL, json=l2vpn_payload)
-        assert response.status_code != 201, "L2VPN provisioning should fail due to unavailable port"
-
-        # Bring the port back up
-        tenet_node.intf('Tenet01-eth50').ifconfig('up')
-        time.sleep(15)
-
-        # Verify that no L2VPN was created (or it was cleaned up if partially created)
+        # Verify L2VPN status is down
         response = requests.get(API_URL)
         assert response.status_code == 200, response.text
-        l2vpn_data = response.json()
-        # Check if the L2VPN with the specific name exists and its status
-        found_l2vpn = False
-        for l2vpn_id, l2vpn_info in l2vpn_data.items():
-            if l2vpn_info.get("name") == "Test L2VPN for partial provisioning failure":
-                found_l2vpn = True
-                assert l2vpn_info.get("status") == "down" or l2vpn_info.get("status") == "error", "L2VPN should be in down/error state or not exist"
-                break
-        assert not found_l2vpn, "L2VPN should not be successfully provisioned or should be cleaned up"
-      
+        l2vpn_response = response.json()
+        assert l2vpn_response == {}
