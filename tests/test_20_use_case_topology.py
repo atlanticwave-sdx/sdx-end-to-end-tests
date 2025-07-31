@@ -54,19 +54,8 @@ class TestE2ETopologyUseCases:
     @classmethod
     def setup_method(cls):
         """Reset network configuration before each test."""
-        api_url = SDX_CONTROLLER + '/l2vpn/1.0'
-        response = requests.get(api_url)
-        assert response.status_code == 200, response.text
-        response_json = response.json()
-        for l2vpn in response_json:
-            response = requests.delete(api_url+f'/{l2vpn}')
-            assert response.status_code == 200, response.text
-
-        # wait for L2VPN to be actually deleted
-        time.sleep(2)
-
-        cls.net.config_all_links_up()
-        time.sleep(5)  # Allow time for topology to stabilize
+        cls.net.stop()
+        cls.setup_class()
 
     def create_new_l2vpn(self, vlan='100', node1='Ampath1', node2='Tenet01'):
         l2vpn_payload = {
@@ -108,7 +97,7 @@ class TestE2ETopologyUseCases:
         # test connectivity
         assert ', 0% packet loss,' in h1.cmd(f"ping -c4 {add2}")
         return {'id':l2vpn_id, 'data':l2vpn_data, 'h':h1, 'ping_str':f"ping -c4 {add2}"}
-    
+
     @pytest.mark.xfail(reason="The status of the L2VPN doesn't change to down after setting the link to down")
     def test_010_intra_domain_link_down(self):
         """
@@ -599,7 +588,7 @@ class TestE2ETopologyUseCases:
         data = response.json()
         links = [link['id'] for link in data['links']]
         assert link_name not in links
-        
+    
     def test_081_link_missing_with_alternate_path(self):
         """
         Use case 8: Test Remove Link (because it was deleted by the OXP)
@@ -660,6 +649,199 @@ class TestE2ETopologyUseCases:
         l2vpn_status = l2vpn_response.get(l2vpn_id).get("status")
         assert l2vpn_status == "up", f"L2VPN status should be up, but is {l2vpn_status}"
 
+    @pytest.mark.xfail(reason="Interface could not be deleted. Reason: There is a flow installed,")
+    def test_090_port_missing_uni(self):
+        """
+        Use Case 9: OXPO sends a topology update with a Port missing
+
+        Expected behavior:
+        SDX Controller:
+        If that Port is a UNI: Change statuses of the services to down.
+        """
+        
+        self.create_new_l2vpn(vlan='900',node1 = 'Tenet01', node2='Tenet03')
+        port_id_missing =  'urn:sdx:port:tenet.ac.za:Tenet03:50'
+        endp = 'Tenet03-eth50'
+        node = self.net.net.get('Tenet03')
+        
+        response = requests.get(API_URL_TOPO)
+        assert response.status_code == 200, response.text
+        topology = response.json()
+        port_found = False
+        for node_ in topology['nodes']:
+            if node_['name'] == endp.split('-')[0]:
+                port_found = True
+                break
+        assert port_found
+
+        # Get interfaces
+        tenet_api = KYTOS_API % 'tenet'
+        api_url_tenet_interface = f'{tenet_api}/topology/v3/interfaces'
+        response = requests.get(api_url_tenet_interface)
+        assert response.status_code == 200
+        data = response.json()
+        interfaces_id = None
+        for key, value in data['interfaces'].items():
+           if endp == value["name"]:
+               interfaces_id = key
+               break
+        assert interfaces_id
+
+        # Disabling interfaces
+        node.cmd(f'ip link set dev {endp} down')
+        api_url = f'{api_url_tenet_interface}/{interfaces_id}/disable'
+        response = requests.post(api_url)
+        assert response.status_code == 200, response.text
+
+        node.cmd(f'ovs-ofctl del-flows {node.name}')
+        result = node.cmd(f'ovs-ofctl dump-flows {node.name}')
+        assert result == ''
+                
+        # Deleting interfaces
+        api_url = f'{api_url_tenet_interface}/{interfaces_id}'
+        response = requests.delete(api_url)
+        assert response.status_code == 200, response.text
+        
+        time.sleep(5)
+        
+        # Force to send the topology to the SDX-LC
+        sdx_api = KYTOS_SDX_API % 'tenet'
+        response = requests.post(f"{sdx_api}/topology/2.0.0")
+        assert response.status_code == 200
+        response = requests.get(f"{sdx_api}/topology/2.0.0")
+        assert response.status_code == 200
+
+        # Verify change status of the services to down.
+        response = requests.get(API_URL_TOPO)
+        assert response.status_code == 200, response.text
+        updated_topology = response.json()
+
+        port_found = False
+        for node in updated_topology['nodes']:
+            if node['name'] == endp.split('-')[0]:
+                for port in node['ports']:
+                    if port['id'] == port_id_missing:
+                        assert port['status'] == 'down'
+                        assert port['services']['l2vpn_ptp'] == {}, port
+                        port_found = True
+                        break
+                if port_found:
+                    break
+        assert port_found
+
+    @pytest.mark.xfail(reason="Interface could not be deleted. Reason: There is a flow installed")
+    def test_091_port_missing_nni(self):
+        """
+        Use Case 9: OXPO sends a topology update with a Port missing
+
+        Expected behavior:
+        SDX Controller:
+        If that Port was a NNI and then it is changed to UNI by just one side, 
+        then the SDX Link should have set to status = error and that Link should not be considered a link from the SDX perspective. 
+        
+        - Remove the link from the topology
+        - Handle the link removal as if it was a link down
+
+        """
+        self.create_new_l2vpn(vlan='910',node1 = 'Tenet01', node2='Tenet02')
+        port_id_missing =  'urn:sdx:port:tenet.ac.za:Tenet02:1'
+        endp = 'Tenet02-eth1'
+        node = self.net.net.get('Tenet02')
+               
+        # Get initial topology
+        response = requests.get(API_URL_TOPO)
+        assert response.status_code == 200, response.text
+        initial_topology = response.json()
+        port_found_uni = None
+        for node_ in initial_topology['nodes']:
+            if node_['name'] == endp.split('-')[0]:
+                for port in node_['ports']:
+                    if port['id'] == port_id_missing:
+                        assert port['nni'] != '', port
+                        port_found_uni = port
+                        break
+                if port_found_uni:
+                    break
+        assert port_found_uni
+
+        # Get interfaces id
+        tenet_api = KYTOS_API % 'tenet'
+        api_url_tenet_interface = f'{tenet_api}/topology/v3/interfaces'
+        response = requests.get(api_url_tenet_interface)
+        assert response.status_code == 200
+        data = response.json()
+        interfaces_id = None
+        for key, value in data['interfaces'].items():
+           if endp == value["name"]:
+               interfaces_id = key
+               break
+        assert interfaces_id
+
+        # Disabling interfaces
+        node.cmd(f'ip link set dev {endp} down')
+        api_url = f'{api_url_tenet_interface}/{interfaces_id}/disable'
+        response = requests.post(api_url)
+        assert response.status_code == 200, response.text
+        
+        time.sleep(15)
+        
+        # Deleting link
+        api_url_tenet_links = f'{tenet_api}/topology/v3/links'
+        response = requests.get(api_url_tenet_links)
+        assert response.status_code == 200
+        data = response.json()
+        links_name = None
+        for key, value in data['links'].items():
+            endpoint_a = value["endpoint_a"]["name"]
+            endpoint_b = value["endpoint_b"]["name"]
+            if endp in [endpoint_a, endpoint_b]:
+                self.net.net.configLinkStatus(endpoint_a.split('-')[0], endpoint_b.split('-')[0], 'down')
+                api_url_disable = f'{api_url_tenet_links}/{key}/disable'
+                response = requests.post(api_url_disable)
+                assert response.status_code == 201, response.text
+                api_url = f'{api_url_tenet_links}/{key}'
+                response = requests.delete(api_url)
+                assert response.status_code == 200, response.text
+                links_name = '_'.join(['/'.join(endpoint_a.split('-')), '/'.join(endpoint_b.split('-'))])
+                break
+        assert links_name
+
+        # Deleting installed flows
+        node.cmd(f'ovs-ofctl del-flows {node.name}')
+        result = node.cmd(f'ovs-ofctl dump-flows {node.name}')
+        assert result == ''
+        
+        # Deleting interfaces
+        api_url = f'{api_url_tenet_interface}/{interfaces_id}'
+        response = requests.delete(api_url)
+        assert response.status_code == 200, response.text
+        
+        time.sleep(5)
+
+        # Force to send the topology to the SDX-LC
+        sdx_api = KYTOS_SDX_API % 'tenet'
+        response = requests.post(f"{sdx_api}/topology/2.0.0")
+        assert response.status_code == 200
+        response = requests.get(f"{sdx_api}/topology/2.0.0")
+        assert response.status_code == 200
+        
+        # Verify the link is removed in the topology
+        response = requests.get(API_URL_TOPO)
+        assert response.status_code == 200, response.text
+        updated_topology = response.json()
+        port_found_nni = False
+        links = [link['name'] for link in updated_topology['links']]
+        for node_ in updated_topology['nodes']:
+            if node_['name'] == endp.split('-')[0]:
+                for port in node_['ports']:
+                    if port['id'] == port_id_missing and port['nni'] == '':
+                        assert links_name in links
+                        port_found_nni = True
+                        break
+                if port_found_nni:
+                    break
+        assert port_found_nni
+    
     def test_100_vlan_range_change(self):
         """
         Use Case 10: OXPO sends a topology update with a changed VLAN range is for any of the services supported.
@@ -714,4 +896,3 @@ class TestE2ETopologyUseCases:
         l2vpn_response = response.json()
         assert l2vpn_response.get(l2vpn_id).get("status") == "down", "L2VPN status should be down/error due to unsupported service"
         assert ', 100% packet loss,' in l2vpn_data['h'].cmd(l2vpn_data['ping_str'])
-        
