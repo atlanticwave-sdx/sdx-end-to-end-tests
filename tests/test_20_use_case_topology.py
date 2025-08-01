@@ -22,7 +22,7 @@ KYTOS_API = 'http://%s:8181/api/kytos'
 KYTOS_SDX_API  = "http://%s:8181/api/kytos/sdx"
 
 UNI2HOST = {
-    "Ampath1": {"id":"urn:sdx:port:ampath.net:Ampath1:50", "host":"1"},  
+    "Ampath1": {"id":"urn:sdx:port:ampath.net:Ampath1:50", "host":"1"},
     "Ampath2": {"id":"urn:sdx:port:ampath.net:Ampath2:50", "host":"2"},
     "Ampath3": {"id":"urn:sdx:port:ampath.net:Ampath3:50", "host":"3"},
     "Sax01": {"id":"urn:sdx:port:sax.net:Sax01:50", "host":"4"},
