@@ -714,4 +714,67 @@ class TestE2ETopologyUseCases:
         l2vpn_response = response.json()
         assert l2vpn_response.get(l2vpn_id).get("status") == "down", "L2VPN status should be down/error due to unsupported service"
         assert ', 100% packet loss,' in l2vpn_data['h'].cmd(l2vpn_data['ping_str'])
+    
+    def test_120_l2vpn_provisioning_failure(self):
+        """
+        Tests Use Case 12: L2VPN provisioning fails gracefully when no path exists.
+
+        A L2VPN that spans through three OXPs is requested , and 
+        at the installation time everything was going well until one OXP fails to create that breakdown
+        To simulate that: instantiate an EVC on the Kytos controller of the OXP using the same vlan 
+        """
+        # Simulate a control plane failure on tenet: Create an EVC on the Kytos controller of tenet using vlan 1200
+        tenet_api = KYTOS_API % 'tenet'
+        api_url_tenet_evc = f'{tenet_api}/mef_eline/v2/evc/'
+        payload = {
+            "name": "Vlan_1200",
+            "enabled": True,
+            "dynamic_backup_path": True,
+            "uni_a": {
+                "interface_id": "cc:00:00:00:00:00:00:06:50",
+                "tag": {"tag_type": "vlan", "value": 1200}
+            },
+            "uni_z": {
+                "interface_id": "cc:00:00:00:00:00:00:08:50",
+                "tag": {"tag_type": "vlan", "value": 1200}
+            }
+        }
+        response = requests.post(api_url_tenet_evc, data=json.dumps(payload), headers={'Content-type': 'application/json'})
+        assert response.status_code == 201, response.text
         
+        # Request a L2VPN with vlan 1200
+        l2vpn_payload = {
+            "name": "Test L2VPN with out-of-range VLAN",
+            "endpoints": [
+                {
+                    "port_id": "urn:sdx:port:ampath.net:Ampath1:50",
+                    "vlan": "1200", 
+                },
+                {
+                    "port_id": "urn:sdx:port:tenet.ac.za:Tenet01:50",
+                    "vlan": "1200",
+                }
+            ]
+        }
+        response = requests.post(API_URL, json=l2vpn_payload)
+        assert response.status_code == 201, response.text
+        l2vpn_id = response.json().get("service_id")
+
+        # Wait for L2VPN to be provisioned
+        time.sleep(5)
+
+        response = requests.get(API_URL)
+        assert response.status_code == 200, response.text
+        l2vpn_data = response.json().get(l2vpn_id)
+        assert l2vpn_data.get("status") == 'down', l2vpn_data
+
+        h1, h6 = self.net.net.get('h1', 'h6')
+        h1.cmd(f"ip link add link {h1.intfNames()[0]} name vlan1200 type vlan id 1200")
+        h1.cmd(f"ip link set up vlan1200")
+        h1.cmd(f"ip addr add 10.120.1.1/24 dev vlan1200")
+        h6.cmd(f"ip link add link {h6.intfNames()[0]} name vlan1200 type vlan id 1200")
+        h6.cmd(f"ip link set up vlan1200")
+        h6.cmd(f"ip addr add 10.120.1.6/24 dev vlan1200")
+
+        # test connectivity
+        assert ', 100% packet loss,' in h1.cmd(f"ping -c4 10.120.1.6")
