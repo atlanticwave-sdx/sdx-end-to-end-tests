@@ -108,7 +108,7 @@ class TestE2ETopologyUseCases:
         # test connectivity
         assert ', 0% packet loss,' in h1.cmd(f"ping -c4 {add2}")
         return {'id':l2vpn_id, 'data':l2vpn_data, 'h':h1, 'ping_str':f"ping -c4 {add2}"}
-    
+
     @pytest.mark.xfail(reason="The status of the L2VPN doesn't change to down after setting the link to down")
     def test_010_intra_domain_link_down(self):
         """
@@ -714,7 +714,8 @@ class TestE2ETopologyUseCases:
         l2vpn_response = response.json()
         assert l2vpn_response.get(l2vpn_id).get("status") == "down", "L2VPN status should be down/error due to unsupported service"
         assert ', 100% packet loss,' in l2vpn_data['h'].cmd(l2vpn_data['ping_str'])
-    
+
+    @pytest.mark.xfail(reason="found an unfeasible flow")
     def test_120_l2vpn_provisioning_failure(self):
         """
         Tests Use Case 12: L2VPN provisioning fails gracefully when no path exists.
@@ -759,7 +760,7 @@ class TestE2ETopologyUseCases:
         response = requests.post(API_URL, json=l2vpn_payload)
         assert response.status_code == 201, response.text
         l2vpn_id = response.json().get("service_id")
-
+        
         # Wait for L2VPN to be provisioned
         time.sleep(5)
 
@@ -778,3 +779,20 @@ class TestE2ETopologyUseCases:
 
         # test connectivity
         assert ', 100% packet loss,' in h1.cmd(f"ping -c4 10.120.1.6")
+
+        s1 = self.net.net.get('Ampath1')
+        flows_s1 = s1.cmd(f'ovs-ofctl dump-flows {s1.name}')
+        for flow in flows_s1.split('\r\n '):
+            in_port_match = re.search(r'in_port="([^"]+)"', flow)
+            in_port = in_port_match.group(1) if in_port_match else None
+
+            dl_vlan_match = re.search(r'dl_vlan=(\d+)', flow)
+            dl_vlan = int(dl_vlan_match.group(1)) if dl_vlan_match else None
+            assert not (in_port == "Ampath1-eth50" and dl_vlan == 1200), flow
+
+        response = requests.delete(API_URL+f'/{l2vpn_id}')
+        assert response.status_code == 200, response.text
+
+        response = requests.get(API_URL)
+        assert response.status_code == 200, response.text
+        assert l2vpn_id not in response.json()
