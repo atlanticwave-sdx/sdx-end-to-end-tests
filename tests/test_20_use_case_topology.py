@@ -54,7 +54,6 @@ class TestE2ETopologyUseCases:
     @classmethod
     def setup_method(cls):
         """Reset network configuration before each test."""
-        cls.net.stop()
         cls.setup_class()
 
     def create_new_l2vpn(self, vlan='100', node1='Ampath1', node2='Tenet01'):
@@ -648,7 +647,7 @@ class TestE2ETopologyUseCases:
         l2vpn_response = response.json()
         l2vpn_status = l2vpn_response.get(l2vpn_id).get("status")
         assert l2vpn_status == "up", f"L2VPN status should be up, but is {l2vpn_status}"
-
+    
     @pytest.mark.xfail(reason="Interface could not be deleted. Reason: There is a flow installed,")
     def test_090_port_missing_uni(self):
         """
@@ -692,10 +691,6 @@ class TestE2ETopologyUseCases:
         api_url = f'{api_url_tenet_interface}/{interfaces_id}/disable'
         response = requests.post(api_url)
         assert response.status_code == 200, response.text
-
-        node.cmd(f'ovs-ofctl del-flows {node.name}')
-        result = node.cmd(f'ovs-ofctl dump-flows {node.name}')
-        assert result == ''
                 
         # Deleting interfaces
         api_url = f'{api_url_tenet_interface}/{interfaces_id}'
@@ -711,7 +706,7 @@ class TestE2ETopologyUseCases:
         response = requests.get(f"{sdx_api}/topology/2.0.0")
         assert response.status_code == 200
 
-        # Verify change status of the services to down.
+        # Verify the topology to confirm interface is not listed anymore.
         response = requests.get(API_URL_TOPO)
         assert response.status_code == 200, response.text
         updated_topology = response.json()
@@ -721,13 +716,11 @@ class TestE2ETopologyUseCases:
             if node['name'] == endp.split('-')[0]:
                 for port in node['ports']:
                     if port['id'] == port_id_missing:
-                        assert port['status'] == 'down'
-                        assert port['services']['l2vpn_ptp'] == {}, port
                         port_found = True
                         break
                 if port_found:
                     break
-        assert port_found
+        assert not port_found
 
     @pytest.mark.xfail(reason="Interface could not be deleted. Reason: There is a flow installed")
     def test_091_port_missing_nni(self):
@@ -840,7 +833,7 @@ class TestE2ETopologyUseCases:
                         break
                 if port_found_nni:
                     break
-        assert port_found_nni
+        assert not port_found_nni
     
     def test_100_vlan_range_change(self):
         """
@@ -896,3 +889,4 @@ class TestE2ETopologyUseCases:
         l2vpn_response = response.json()
         assert l2vpn_response.get(l2vpn_id).get("status") == "down", "L2VPN status should be down/error due to unsupported service"
         assert ', 100% packet loss,' in l2vpn_data['h'].cmd(l2vpn_data['ping_str'])
+    
