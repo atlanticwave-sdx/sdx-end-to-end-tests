@@ -691,7 +691,7 @@ class TestE2ETopologyUseCases:
         api_url = f'{api_url_tenet_interface}/{interfaces_id}/disable'
         response = requests.post(api_url)
         assert response.status_code == 200, response.text
-                
+
         # Deleting interfaces
         api_url = f'{api_url_tenet_interface}/{interfaces_id}'
         response = requests.delete(api_url)
