@@ -570,7 +570,7 @@ class TestE2ETopologyUseCases:
         assert l2vpn_response.get(l2vpn_id).get("status") == "down", "L2VPN status should be down/error due to unsupported service"
         assert ', 100% packet loss,' in l2vpn_data['h'].cmd(l2vpn_data['ping_str'])
 
-    @pytest.mark.xfail(reason="Found an unfeasible flow")
+    @pytest.mark.xfail(reason="EVCs from OXPs where L2VPN creation does not fail are not empty")
     def test_120_l2vpn_provisioning_failure(self):
         """
         Tests Use Case 12: L2VPN provisioning fails gracefully when no path exists.
@@ -597,6 +597,20 @@ class TestE2ETopologyUseCases:
         }
         response = requests.post(api_url_tenet_evc, data=json.dumps(payload), headers={'Content-type': 'application/json'})
         assert response.status_code == 201, response.text
+
+        ampath_api = KYTOS_API % 'ampath'
+        ampath_url = ampath_api + '/mef_eline/v2/evc/'
+        response = requests.get(ampath_url)
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert len(data) == 0
+
+        sax_api = KYTOS_API % 'sax'
+        sax_url = sax_api + '/mef_eline/v2/evc/'
+        response = requests.get(sax_url)
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert len(data) == 0
 
         # Request a L2VPN with vlan 1200
         l2vpn_payload = {
@@ -634,15 +648,16 @@ class TestE2ETopologyUseCases:
 
         # test connectivity
         assert ', 100% packet loss,' in h1.cmd(f"ping -c4 10.120.1.6")
-        
-        ampath_api = KYTOS_API % 'ampath'
-        dpid = 'aa:00:00:00:00:00:00:01'
-        api_url = f"{ampath_api}/flow_manager/v2/stored_flows?state=installed&dpid={dpid}"
-        response = requests.get(api_url)
+
+        response = requests.get(ampath_url)
         assert response.status_code == 200, response.text
-        data = response.json().get(dpid)
-        for flow in data:
-            assert flow['flow'].get('match').get('dl_vlan') != 1200, flow
+        data = response.json()
+        assert len(data) == 0, data
+
+        response = requests.get(sax_url)
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert len(data) == 0, data
 
         response = requests.delete(API_URL+f'/{l2vpn_id}')
         assert response.status_code == 200, response.text
