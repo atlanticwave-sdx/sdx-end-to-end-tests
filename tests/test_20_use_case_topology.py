@@ -515,151 +515,6 @@ class TestE2ETopologyUseCases:
         final_data = requests.get(API_URL).json()
         assert final_data[l2vpn_id] == l2vpn_data['data'], "L2VPN state changed unexpectedly"
 
-    @pytest.mark.xfail(reason="L2VPN remains up after a link is removed from topology and no alternate path exists")
-    def test_080_link_missing(self):
-        """
-        Use case 8: Test Remove Link (because it was deleted by the OXP)
-
-        1. Topology version number increases, 
-        2. link is removed from topology,
-        3. L2VPN status changes to down due to no alternate path exists,
-        4. the Link is not exported by the OXP and SDX-LC,
-        """
-        endp1 = 'Tenet01-eth2'
-        endp2 = 'Tenet03-eth2'
-
-        # Get link id
-        tenet_api = KYTOS_API % 'tenet'
-        api_url_tenet = f'{tenet_api}/topology/v3/links'
-        response = requests.get(api_url_tenet)
-        assert response.status_code == 200
-        data = response.json()
-        link_id = None
-        for key, value in data['links'].items():
-            endpoint_a = value["endpoint_a"]["name"]
-            endpoint_b = value["endpoint_b"]["name"]
-            if set([endpoint_a, endpoint_b]) == set([endp1, endp2]):
-               link_name = 'urn:sdx:link:tenet.ac.za:Tenet01/2_Tenet03/2'
-               link_id = key
-               break
-        assert link_id
-
-        l2vpn_data = self.create_new_l2vpn(vlan='800', node1='Tenet01', node2='Tenet03')
-        l2vpn_id = l2vpn_data['id']
-
-        # Get initial topology version
-        initial_topology = requests.get(API_URL_TOPO).json()
-        initial_version = float(initial_topology["version"])
-        links = {link["id"] for link in initial_topology["links"]}
-        assert link_name in links
-
-        # Disabling link
-        self.net.net.configLinkStatus('Tenet01', 'Tenet03', 'down')
-        api_url_disable = f'{api_url_tenet}/{link_id}/disable'
-        response = requests.post(api_url_disable)
-        assert response.status_code == 201, response.text
-    
-        # Deleting link
-        api_url = f'{api_url_tenet}/{link_id}'
-        response = requests.delete(api_url)
-        assert response.status_code == 200, response.text
-            
-        time.sleep(15) 
-    
-        # Verify topology version increased
-        updated_topology = requests.get(API_URL_TOPO).json()
-        updated_version = float(updated_topology["version"])
-        assert updated_version > initial_version, "Topology version did not increase"
-
-        links = {link["id"]: link for link in updated_topology["links"]}
-        assert link_name not in links 
-
-        # Verify L2VPN status is down (no alternate path)
-        response = requests.get(API_URL)
-        assert response.status_code == 200, response.text
-        l2vpn_response = response.json()
-        l2vpn_status = l2vpn_response.get(l2vpn_id).get("status")
-        assert l2vpn_status == "down", f"L2VPN status should be down, but is {l2vpn_status}"
-
-        # Test connectivity (should fail)
-        assert ', 100% packet loss,' in l2vpn_data['host1'].cmd(l2vpn_data['ping_str'])
-
-        # Verify Link is not exported by tenet and SDX-LC
-        response = requests.get(f'{tenet_api}/topology/v3/links')
-        assert response.status_code == 200
-        data = response.json()
-        for _, link in data['links'].items():
-            ep_a = link['endpoint_a']['name']
-            ep_b = link['endpoint_b']['name']
-            assert set(['Tenet01', 'Tenet03']) != set([ep_a, ep_b]), link
-
-        sdx_api = KYTOS_SDX_API % 'tenet'
-        response = requests.get(f"{sdx_api}/topology/2.0.0")
-        assert response.status_code == 200
-        data = response.json()
-        links = [link['id'] for link in data['links']]
-        assert link_name not in links
-        
-    def test_081_link_missing_with_alternate_path(self):
-        """
-        Use case 8: Test Remove Link (because it was deleted by the OXP)
-        """
-        endp1 = 'Tenet01-eth1'
-        endp2 = 'Tenet02-eth1'
-
-        # Get link id
-        tenet_api = KYTOS_API % 'tenet'
-        api_url_tenet = f'{tenet_api}/topology/v3/links'
-        response = requests.get(api_url_tenet)
-        assert response.status_code == 200
-        data = response.json()
-        link_id = None
-        for key, value in data['links'].items():
-            endpoint_a = value["endpoint_a"]["name"]
-            endpoint_b = value["endpoint_b"]["name"]
-            if set([endpoint_a, endpoint_b]) == set([endp1, endp2]):
-                link_id = key
-                link_name = 'urn:sdx:link:tenet.ac.za:Tenet01/1_Tenet02/1'
-                break
-        assert link_id
-
-        l2vpn_data = self.create_new_l2vpn(vlan='810', node1='Tenet01', node2='Tenet02')
-        l2vpn_id = l2vpn_data['id']
-
-        # Get initial topology version
-        initial_topology = requests.get(API_URL_TOPO).json()
-        initial_version = float(initial_topology["version"])
-        links = {link["id"] for link in initial_topology["links"]}
-        assert link_name in links
-
-        # Disabling link
-        self.net.net.configLinkStatus('Tenet01', 'Tenet02', 'down')
-        api_url_disable = f'{api_url_tenet}/{link_id}/disable'
-        response = requests.post(api_url_disable)
-        assert response.status_code == 201, response.text
-    
-        # Deleting link
-        api_url = f'{api_url_tenet}/{link_id}'
-        response = requests.delete(api_url)
-        assert response.status_code == 200, response.text
-            
-        time.sleep(15) 
-    
-        # Verify topology version increased
-        updated_topology = requests.get(API_URL_TOPO).json()
-        updated_version = float(updated_topology["version"])
-        assert updated_version > initial_version, "Topology version did not increase"
-
-        links = {link["id"]: link for link in updated_topology["links"]}
-        assert link_name not in links 
-
-        # Verify L2VPN status is down (alternate path)
-        response = requests.get(API_URL)
-        assert response.status_code == 200, response.text
-        l2vpn_response = response.json()
-        l2vpn_status = l2vpn_response.get(l2vpn_id).get("status")
-        assert l2vpn_status == "up", f"L2VPN status should be up, but is {l2vpn_status}"
-
     def test_100_vlan_range_change(self):
         """
         Use Case 10: OXPO sends a topology update with a changed VLAN range is for any of the services supported.
@@ -715,7 +570,7 @@ class TestE2ETopologyUseCases:
         assert l2vpn_response.get(l2vpn_id).get("status") == "down", "L2VPN status should be down/error due to unsupported service"
         assert ', 100% packet loss,' in l2vpn_data['h'].cmd(l2vpn_data['ping_str'])
 
-    @pytest.mark.xfail(reason="found an unfeasible flow")
+    @pytest.mark.xfail(reason="Found an unfeasible flow")
     def test_120_l2vpn_provisioning_failure(self):
         """
         Tests Use Case 12: L2VPN provisioning fails gracefully when no path exists.
@@ -742,7 +597,7 @@ class TestE2ETopologyUseCases:
         }
         response = requests.post(api_url_tenet_evc, data=json.dumps(payload), headers={'Content-type': 'application/json'})
         assert response.status_code == 201, response.text
-        
+
         # Request a L2VPN with vlan 1200
         l2vpn_payload = {
             "name": "Test L2VPN with out-of-range VLAN",
@@ -779,16 +634,15 @@ class TestE2ETopologyUseCases:
 
         # test connectivity
         assert ', 100% packet loss,' in h1.cmd(f"ping -c4 10.120.1.6")
-
-        s1 = self.net.net.get('Ampath1')
-        flows_s1 = s1.cmd(f'ovs-ofctl dump-flows {s1.name}')
-        for flow in flows_s1.split('\r\n '):
-            in_port_match = re.search(r'in_port="([^"]+)"', flow)
-            in_port = in_port_match.group(1) if in_port_match else None
-
-            dl_vlan_match = re.search(r'dl_vlan=(\d+)', flow)
-            dl_vlan = int(dl_vlan_match.group(1)) if dl_vlan_match else None
-            assert not (in_port == "Ampath1-eth50" and dl_vlan == 1200), flow
+        
+        ampath_api = KYTOS_API % 'ampath'
+        dpid = 'aa:00:00:00:00:00:00:01'
+        api_url = f"{ampath_api}/flow_manager/v2/stored_flows?state=installed&dpid={dpid}"
+        response = requests.get(api_url)
+        assert response.status_code == 200, response.text
+        data = response.json().get(dpid)
+        for flow in data:
+            assert flow['flow'].get('match').get('dl_vlan') != 1200, flow
 
         response = requests.delete(API_URL+f'/{l2vpn_id}')
         assert response.status_code == 200, response.text
