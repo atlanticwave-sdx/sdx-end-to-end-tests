@@ -659,7 +659,7 @@ class TestE2ETopologyUseCases:
         data = response.json()
         assert len(data) == 0, data
 
-        response = requests.delete(API_URL+f'/{l2vpn_id}')
+        response = requests.delete(f"{API_URL}/{l2vpn_id}")
         assert response.status_code == 200, response.text
 
         response = requests.get(API_URL)
