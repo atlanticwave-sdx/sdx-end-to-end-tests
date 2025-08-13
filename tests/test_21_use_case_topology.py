@@ -305,14 +305,15 @@ class TestE2ETopologyUseCases:
         l2vpn_data = response.json().get(l2vpn_id)
         l2vpn_status = l2vpn_data.get("status")
         assert l2vpn_status == "down", l2vpn_data
-    
-    @pytest.mark.xfail(reason="Failed to send topoloty to SDX-LC")
+
+    @pytest.mark.xfail(reason="The link status is up after changing the attribute sdx_nni='' on one side")
     def test_091_port_missing_nni(self):
         """
         Use Case 9: OXPO sends a topology update with a Port missing
         """
         l2vpn_data = self.create_new_l2vpn(vlan='910', node1='Ampath1', node2= 'Sax01')
         l2vpn_id = l2vpn_data['id']
+        port_name = 'Ampath1-eth40'
         link_name = 'Ampath1-eth40--Sax01-eth40'
         interfaces_id = 'aa:00:00:00:00:00:00:01:40'
             
@@ -323,11 +324,12 @@ class TestE2ETopologyUseCases:
         for link in topology['links']:
             if link['name'] == link_name:
                 assert link['status'] == 'up'
+                break
         
         ampath_api = KYTOS_API % 'ampath'
         api_url_ampath = f'{ampath_api}/topology/v3'
-        response = requests.post(f"{api_url_ampath}/interfaces/{interfaces_id}/metadata", json={"sdx_nni": ""})
-        assert response.status_code == 201, response.text
+        response = requests.delete(f"{api_url_ampath}/interfaces/{interfaces_id}/metadata/sdx_nni")
+        assert response.status_code == 200, response.text
 
         # Force to send the topology to the SDX-LC
         sdx_api = KYTOS_SDX_API % 'ampath'
@@ -336,13 +338,18 @@ class TestE2ETopologyUseCases:
 
         time.sleep(5)
 
-        # Verify the topology to confirm interface is not listed anymore.
         response = requests.get(API_URL_TOPO)
         assert response.status_code == 200, response.text
         updated_topology = response.json()
+        for node in updated_topology['nodes']:
+            if node['name'] == port_name.split('-')[0]:
+                for port in node['ports']:
+                    if port['name'] == port_name:
+                        assert port['nni'] == ''
         for link in updated_topology['links']:
             if link['name'] == link_name:
                 assert link['status'] == 'error'
+                break
 
         response = requests.get(API_URL)
         assert response.status_code == 200, response.text
