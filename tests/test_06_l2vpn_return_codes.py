@@ -33,6 +33,7 @@ class TestE2EReturnCodes:
         response_json = response.json()
         for l2vpn in response_json:
             response = requests.delete(api_url+f'/{l2vpn}')
+            assert response.status_code == 200, response.text
 
         # wait for L2VPN to be actually deleted
         time.sleep(2)
@@ -54,6 +55,17 @@ class TestE2EReturnCodes:
         }
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
+        service_id = response.json()["service_id"]
+
+        # allow time for SDX-Controller propagate changes
+        time.sleep(5)
+
+        response = requests.get(f"{api_url}/{service_id}")
+        assert response.status_code == 200, response.text
+        data = response.json()[service_id]
+        assert data["status"] == "up", str(data)
+        assert len(data["endpoints"]) == 2, str(data)
+        assert len(data["current_path"]) > 0, str(data)
     
     def test_011_create_l2vpn_vlan_translation(self):
         """
@@ -71,6 +83,37 @@ class TestE2EReturnCodes:
         }
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
+        service_id = response.json()["service_id"]
+
+        # allow time for SDX-Controller propagate changes
+        time.sleep(5)
+
+        response = requests.get(f"{api_url}/{service_id}")
+        assert response.status_code == 200, response.text
+        data = response.json()[service_id]
+        assert data["status"] == "up", str(data)
+        assert len(data["endpoints"]) == 2, str(data)
+        assert len(data["current_path"]) > 0, str(data)
+
+        # allow time for SDX-Controller propagate changes
+        time.sleep(5)
+
+        response = requests.get(f"{api_url}/{service_id}")
+        assert response.status_code == 200, response.text
+        data = response.json()[service_id]
+        assert data["status"] == "up", str(data)
+        assert len(data["endpoints"]) == 2, str(data)
+        assert len(data["current_path"]) > 0, str(data)
+
+        # allow time for SDX-Controller propagate changes
+        time.sleep(5)
+
+        response = requests.get(f"{api_url}/{service_id}")
+        assert response.status_code == 200, response.text
+        data = response.json()[service_id]
+        assert data["status"] == "up", str(data)
+        assert len(data["endpoints"]) == 2, str(data)
+        assert len(data["current_path"]) > 0, str(data)
 
     def test_012_create_l2vpn_with_vlan_any(self):
         """
@@ -88,6 +131,17 @@ class TestE2EReturnCodes:
         }
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
+        service_id = response.json()["service_id"]
+
+        # allow time for SDX-Controller propagate changes
+        time.sleep(5)
+
+        response = requests.get(f"{api_url}/{service_id}")
+        assert response.status_code == 200, response.text
+        data = response.json()[service_id]
+        assert data["status"] == "up", str(data)
+        assert len(data["endpoints"]) == 2, str(data)
+        assert len(data["current_path"]) > 0, str(data)
     
     def test_013_create_l2vpn_with_vlan_range(self):
         """
@@ -106,9 +160,9 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
         data = response.json()
-        assert data.get("status") == "under provisioning", data
+        assert data.get("status") == "under provisioning", str(data)
         service_id = data.get("service_id")
-        assert service_id != None, data
+        assert service_id != None, str(data)
 
         # give enough time to SDX-Controller to propagate change to OXPs
         time.sleep(5)
@@ -116,9 +170,9 @@ class TestE2EReturnCodes:
         response = requests.get(api_url)
         assert response.status_code == 200, response.text
         data = response.json()
-        assert len(data) == 1, data
-        assert service_id in data, data
-        assert data[service_id].get("status") == "up", data
+        assert len(data) == 1, str(data)
+        assert service_id in data, str(data)
+        assert data[service_id].get("status") == "up", str(data)
 
         #
         # make sure OXPs have the new EVCs
@@ -130,7 +184,7 @@ class TestE2EReturnCodes:
         for evc in evcs.values():
             if evc.get("uni_a", {}).get("tag", {}).get("value") == [[600, 999]]:
                 found += 1
-        assert found == 1, evcs
+        assert found == 1, str(evcs)
         ## -> sax
         response = requests.get("http://sax:8181/api/kytos/mef_eline/v2/evc/")
         evcs = response.json()
@@ -139,7 +193,7 @@ class TestE2EReturnCodes:
         for evc in evcs.values():
             if evc.get("uni_z", {}).get("tag", {}).get("value") == [[600, 999]]:
                 found += 1
-        assert found == 1, evcs
+        assert found == 1, str(evcs)
 
     def test_014_create_l2vpn_with_vlan_untagged(self):
         """
@@ -158,9 +212,9 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
         data = response.json()
-        assert data.get("status") == "under provisioning", data
+        assert data.get("status") == "under provisioning", str(data)
         service_id = data.get("service_id")
-        assert service_id != None, data
+        assert service_id != None, str(data)
 
         # give enough time to SDX-Controller to propagate change to OXPs
         time.sleep(5)
@@ -168,9 +222,9 @@ class TestE2EReturnCodes:
         response = requests.get(api_url)
         assert response.status_code == 200, response.text
         data = response.json()
-        assert len(data) == 1, data
-        assert service_id in data, data
-        assert data[service_id].get("status") == "up", data
+        assert len(data) == 1, str(data)
+        assert service_id in data, str(data)
+        assert data[service_id].get("status") == "up", str(data)
 
         #
         # make sure OXPs have the new EVCs
@@ -182,7 +236,7 @@ class TestE2EReturnCodes:
         for evc in evcs.values():
             if evc.get("uni_a", {}).get("tag", {}).get("value") == 599:
                 found += 1
-        assert found == 1, evcs
+        assert found == 1, str(evcs)
         ## -> sax
         response = requests.get("http://sax:8181/api/kytos/mef_eline/v2/evc/")
         evcs = response.json()
@@ -195,7 +249,7 @@ class TestE2EReturnCodes:
         for evc in evcs.values():
             if evc.get("uni_z", {}).get("tag", {}).get("value") == "untagged":
                 found += 1
-        assert found == 1, evcs
+        assert found == 1, str(evcs)
 
     def _future_date(self, isoformat_time=True):
         # Get the current time
@@ -440,7 +494,7 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
 
-        time.sleep(30)
+        time.sleep(5)
 
         response = requests.post(api_url, json=payload)
         assert response.status_code == 409, response.text
@@ -464,6 +518,17 @@ class TestE2EReturnCodes:
         }
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
+        service_id = response.json()["service_id"]
+
+        # give enough time to SDX-Controller to propagate change to OXPs
+        time.sleep(5)
+
+        response = requests.get(api_url)
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert len(data) == 1, str(data)
+        assert service_id in data, str(data)
+        assert data[service_id].get("status") == "up", str(data)
 
     def test_051_create_l2vpn_with_min_bw_out_of_range(self):
         """
@@ -534,6 +599,9 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
 
+        # allow time for SDX-Controller to propagate changes
+        time.sleep(5)
+
         payload = {
             "name": "Test L2VPN creation available bw",
             "endpoints": [
@@ -570,6 +638,9 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
 
+        # allow time for SDX-Controller to propagate changes
+        time.sleep(5)
+
         payload = {
             "name": "Test L2VPN creation no available bw",
             "endpoints": [
@@ -584,6 +655,18 @@ class TestE2EReturnCodes:
         }
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
+
+        # allow time for SDX-Controller to propagate changes
+        time.sleep(5)
+
+        response = requests.get(api_url)
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert len(data) == 2, str(data)
+        for service_id, l2vpn in data.items():
+            assert l2vpn["status"] == "up", str(l2vpn)
+            assert len(l2vpn["endpoints"]) == 2, str(l2vpn)
+            assert len(l2vpn["current_path"]) > 0, str(l2vpn)
 
     def test_055_create_l2vpn_with_valid_max_delay(self):
         """
@@ -604,6 +687,18 @@ class TestE2EReturnCodes:
         }
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
+
+        # allow time for SDX-Controller to propagate changes
+        time.sleep(5)
+
+        response = requests.get(api_url)
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert len(data) == 1, str(data)
+        for service_id, l2vpn in data.items():
+            assert l2vpn["status"] == "up", str(l2vpn)
+            assert len(l2vpn["endpoints"]) == 2, str(l2vpn)
+            assert len(l2vpn["current_path"]) > 0, str(l2vpn)
 
     def test_056_create_l2vpn_with_max_delay_out_of_range(self):
         """
@@ -667,6 +762,18 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
 
+        # allow time for SDX-Controller to propagate changes
+        time.sleep(5)
+
+        response = requests.get(api_url)
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert len(data) == 1, str(data)
+        for service_id, l2vpn in data.items():
+            assert l2vpn["status"] == "up", str(l2vpn)
+            assert len(l2vpn["endpoints"]) == 2, str(l2vpn)
+            assert len(l2vpn["current_path"]) > 0, str(l2vpn)
+
     def test_059_create_l2vpn_with_max_number_oxps_out_of_range(self):
         """
         Test the return code for creating a SDX L2VPN
@@ -728,6 +835,9 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
 
+        # allow time for SDX-Controller to propagate changes
+        time.sleep(5)
+
         payload = {
             "name": "Test L2VPN creation",
             "endpoints": [
@@ -764,6 +874,9 @@ class TestE2EReturnCodes:
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
 
+        # allow time for SDX-Controller to propagate changes
+        time.sleep(5)
+
         payload = {
             "name": "Test L2VPN creation no available oxps",
             "endpoints": [
@@ -778,6 +891,18 @@ class TestE2EReturnCodes:
         }
         response = requests.post(api_url, json=payload)
         assert response.status_code == 201, response.text
+
+        # allow time for SDX-Controller to propagate changes
+        time.sleep(5)
+
+        response = requests.get(api_url)
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert len(data) == 2, str(data)
+        for service_id, l2vpn in data.items():
+            assert l2vpn["status"] == "up", str(l2vpn)
+            assert len(l2vpn["endpoints"]) == 2, str(l2vpn)
+            assert len(l2vpn["current_path"]) > 0, str(l2vpn)
 
     def test_070_create_l2vpn_with_impossible_scheduling(self):
         """
