@@ -599,13 +599,13 @@ class TestE2ETopologyUseCases:
         response = requests.post(API_URL, json=l2vpn_payload)
         assert response.status_code == 400, response.text
 
-    @pytest.mark.xfail(reason="The L2VPN path associated with VLAN 1010 remains unchanged after modifying the VLAN range to [100–200]")
+    @pytest.mark.xfail(reason="The L2VPN path associated with VLAN 1020 remains unchanged after modifying the VLAN range to [100–200]")
     def test_102_shrinking_vlan_nni_with_alternate_path(self):
         """
         Use Case 10: OXPO sends a topology update with a changed VLAN range is for any of the services supported.
         """
 
-        l2vpn_data = self.create_new_l2vpn(vlan='1010')
+        l2vpn_data = self.create_new_l2vpn(vlan='1020')
         l2vpn_id = l2vpn_data['id']
 
         interfaces_id = 'aa:00:00:00:00:00:00:01:40'
