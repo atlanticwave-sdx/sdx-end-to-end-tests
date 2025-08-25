@@ -581,38 +581,20 @@ class TestE2ETopologyUseCases:
         Use Case 10: OXPO sends a topology update with a changed VLAN range is for any of the services supported.
         """
 
-        l2vpn_payload = {
-            "name": "Test L2VPN",
-            "endpoints": [
-                {
-                    "port_id": "urn:sdx:port:tenet.ac.za:Tenet01:50",
-                    "vlan": "1040",
-                },
-                {
-                    "port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50",
-                    "vlan": "1040",
-                }
-            ]
-        }
-        response = requests.post(API_URL, json=l2vpn_payload)
-        assert response.status_code == 201, response.text
-        l2vpn_id = response.json().get("service_id")
+        l2vpn_data = self.create_new_l2vpn(vlan='1040')
+        l2vpn_id = l2vpn_data['id']
 
-        # Wait for L2VPN to be provisioned
-        time.sleep(5)
-
-        response = requests.get(API_URL)
-        assert response.status_code == 200, response.text
-        l2vpn_response = response.json()
-        l2vpn_response = l2vpn_response.get(l2vpn_id)
-        assert l2vpn_response.get("status") == "up", l2vpn_response
-
-        interfaces_id = 'cc:00:00:00:00:00:00:06:2'
-        interface_name = 'Tenet01-eth2'
+        interfaces_id = 'cc:00:00:00:00:00:00:06:41'
+        interface_name = 'Tenet01-eth41'
         tenet_api = KYTOS_API % 'tenet'
         api_url_tenet = f'{tenet_api}/topology/v3'
         payload = {"sdx_vlan_range": [[100,200]]}
         response = requests.post(f"{api_url_tenet}/interfaces/{interfaces_id}/metadata", json=payload)
+        assert response.status_code == 201, response.text
+
+        # Avoid alternative path
+        interfaces_id_2 = 'cc:00:00:00:00:00:00:06:1'
+        response = requests.post(f"{api_url_tenet}/interfaces/{interfaces_id_2}/metadata", json=payload)
         assert response.status_code == 201, response.text
 
         # Force to send the topology to the SDX-LC
