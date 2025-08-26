@@ -526,7 +526,7 @@ class TestE2ETopologyUseCases:
         ampath_api = KYTOS_API % 'ampath'
         api_url_ampath = f'{ampath_api}/topology/v3'
         payload = {
-        "sdx_vlan_range": [[100,200], [1000, 2000]]
+            "sdx_vlan_range": [[100,200], [1000, 2000]]
         }
         response = requests.post(f"{api_url_ampath}/interfaces/{interfaces_id}/metadata", json=payload)
         assert response.status_code == 201, response.text
@@ -550,7 +550,7 @@ class TestE2ETopologyUseCases:
 
         # Removing vlan
         payload = {
-        "sdx_vlan_range": [[100,200]]
+            "sdx_vlan_range": [[1100, 1500]]
         }
         response = requests.post(f"{api_url_ampath}/interfaces/{interfaces_id}/metadata", json=payload)
         assert response.status_code == 201, response.text
@@ -579,7 +579,7 @@ class TestE2ETopologyUseCases:
         ampath_api = KYTOS_API % 'ampath'
         api_url_ampath = f'{ampath_api}/topology/v3'
         payload = {
-        "sdx_vlan_range": [[100,200], [1000, 2000]]
+            "sdx_vlan_range": [[100,200], [1000, 2000]]
         }
         response = requests.post(f"{api_url_ampath}/interfaces/{interfaces_id}/metadata", json=payload)
         assert response.status_code == 201, response.text
@@ -603,7 +603,7 @@ class TestE2ETopologyUseCases:
 
         # Removing vlan
         payload = {
-        "sdx_vlan_range": [[100,200]]
+            "sdx_vlan_range": [[1100, 1500]]
         }
         response = requests.post(f"{api_url_ampath}/interfaces/{interfaces_id}/metadata", json=payload)
         assert response.status_code == 201, response.text
