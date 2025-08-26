@@ -567,7 +567,7 @@ class TestE2ETopologyUseCases:
         l2vpn_response = response.json()
         l2vpn_response = l2vpn_response.get(l2vpn_id)
         assert l2vpn_response.get("status") == "error", l2vpn_response
-    
+
     @pytest.mark.xfail(reason="The L2VPN path associated with VLAN 1070 remains unchanged after modifying the VLAN range to [100–200]")
     def test_107_removing_vlan_nni_with_alternate_path(self):
         """
