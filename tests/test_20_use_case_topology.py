@@ -520,7 +520,6 @@ class TestE2ETopologyUseCases:
         """
         Use Case 10: OXPO sends a topology update with a changed VLAN range is for any of the services supported.
         """
-
         interfaces_id = 'aa:00:00:00:00:00:00:01:50'
         interface_name = 'Ampath1-eth50'
         ampath_api = KYTOS_API % 'ampath'
