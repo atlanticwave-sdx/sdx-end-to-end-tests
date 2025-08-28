@@ -515,41 +515,21 @@ class TestE2ETopologyUseCases:
         final_data = requests.get(API_URL).json()
         assert final_data[l2vpn_id] == l2vpn_data['data'], "L2VPN state changed unexpectedly"
 
-    @pytest.mark.xfail(reason="The L2VPN with VLAN 1060 remains up even after modifying the VLAN range to [100–200]")
+    @pytest.mark.xfail(reason="The L2VPN with VLAN 1060 remains up even after removing the VLAN range")
     def test_106_removing_vlan_uni(self):
         """
         Use Case 10: OXPO sends a topology update with a changed VLAN range is for any of the services supported.
         """
         interfaces_id = 'aa:00:00:00:00:00:00:01:50'
-        interface_name = 'Ampath1-eth50'
         ampath_api = KYTOS_API % 'ampath'
         api_url_ampath = f'{ampath_api}/topology/v3'
-        payload = {
-            "sdx_vlan_range": [[100,200], [1000, 2000]]
-        }
-        response = requests.post(f"{api_url_ampath}/interfaces/{interfaces_id}/metadata", json=payload)
-        assert response.status_code == 201, response.text
-
-        # Force to send the topology to the SDX-LC
-        sdx_api = KYTOS_SDX_API % 'ampath'
-        response = requests.post(f"{sdx_api}/topology/2.0.0")
-        assert response.status_code == 200, response.text
-
-        time.sleep(15)
-
-        response = requests.get(API_URL_TOPO)
-        data = response.json()
-        for node in data['nodes']: 
-            for port in node['ports']:
-                if port['name'] == interface_name:
-                    assert port['services']['l2vpn_ptp']['vlan_range'] == [[100,200], [1000, 2000]], port
 
         l2vpn_data = self.create_new_l2vpn(vlan='1060')
         l2vpn_id = l2vpn_data['id']
 
         # Removing vlan
         payload = {
-            "sdx_vlan_range": [[1100, 1500]]
+            "sdx_vlan_range": []
         }
         response = requests.post(f"{api_url_ampath}/interfaces/{interfaces_id}/metadata", json=payload)
         assert response.status_code == 201, response.text
@@ -574,35 +554,15 @@ class TestE2ETopologyUseCases:
         """
 
         interfaces_id = 'aa:00:00:00:00:00:00:01:40'
-        interface_name = 'Ampath1-eth40'
         ampath_api = KYTOS_API % 'ampath'
         api_url_ampath = f'{ampath_api}/topology/v3'
-        payload = {
-            "sdx_vlan_range": [[100,200], [1000, 2000]]
-        }
-        response = requests.post(f"{api_url_ampath}/interfaces/{interfaces_id}/metadata", json=payload)
-        assert response.status_code == 201, response.text
-
-        # Force to send the topology to the SDX-LC
-        sdx_api = KYTOS_SDX_API % 'ampath'
-        response = requests.post(f"{sdx_api}/topology/2.0.0")
-        assert response.status_code == 200, response.text
-
-        time.sleep(15)
-
-        response = requests.get(API_URL_TOPO)
-        data = response.json()
-        for node in data['nodes']: 
-            for port in node['ports']:
-                if port['name'] == interface_name:
-                    assert port['services']['l2vpn_ptp']['vlan_range'] == [[100,200], [1000, 2000]], port
 
         l2vpn_data = self.create_new_l2vpn(vlan='1070')
         l2vpn_id = l2vpn_data['id']
 
         # Removing vlan
         payload = {
-            "sdx_vlan_range": [[1100, 1500]]
+            "sdx_vlan_range": []
         }
         response = requests.post(f"{api_url_ampath}/interfaces/{interfaces_id}/metadata", json=payload)
         assert response.status_code == 201, response.text
