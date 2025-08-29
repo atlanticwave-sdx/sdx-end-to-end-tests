@@ -515,21 +515,18 @@ class TestE2ETopologyUseCases:
         final_data = requests.get(API_URL).json()
         assert final_data[l2vpn_id] == l2vpn_data['data'], "L2VPN state changed unexpectedly"
 
-    @pytest.mark.xfail(reason="The L2VPN with VLAN 1030 remains up even after modifying the VLAN range to [100–200].")
+    @pytest.mark.xfail(reason="AssertionError: VLAN range 5000 is invalid, after expanding the range to [1,6000]")
     def test_103_expanding_vlan_uni(self):
         """
         Use Case 10: OXPO sends a topology update with a changed VLAN range is for any of the services supported.
         """
 
-        l2vpn_data = self.create_new_l2vpn(vlan='1030')
-        l2vpn_id = l2vpn_data['id']
-
         interfaces_id = 'aa:00:00:00:00:00:00:01:50'
-        interface_name = 'Ampath1-eth50'
         ampath_api = KYTOS_API % 'ampath'
         api_url_ampath = f'{ampath_api}/topology/v3'
+
         payload = {
-            "sdx_vlan_range": [[100,200]]
+            "sdx_vlan_range": [[1,6000]]
         }
         response = requests.post(f"{api_url_ampath}/interfaces/{interfaces_id}/metadata", json=payload)
         assert response.status_code == 201, response.text
@@ -541,33 +538,8 @@ class TestE2ETopologyUseCases:
 
         time.sleep(15)
 
-        response = requests.get(API_URL_TOPO)
-        data = response.json()
-        for node in data['nodes']: 
-            for port in node['ports']:
-                if port['name'] == interface_name:
-                    assert port['services']['l2vpn_ptp']['vlan_range'] == [[100,200]], port
-
-        response = requests.get(API_URL)
-        assert response.status_code == 200, response.text
-        l2vpn_response = response.json()
-        l2vpn_response = l2vpn_response.get(l2vpn_id)
-        assert l2vpn_response.get("status") == "error", l2vpn_response
-
-        # Expanding vlan
-
-        payload = {
-            "sdx_vlan_range": [[100,2000]]
-        }
-        response = requests.post(f"{api_url_ampath}/interfaces/{interfaces_id}/metadata", json=payload)
-        assert response.status_code == 201, response.text
-
-        # Force to send the topology to the SDX-LC
-        sdx_api = KYTOS_SDX_API % 'ampath'
-        response = requests.post(f"{sdx_api}/topology/2.0.0")
-        assert response.status_code == 200, response.text
-
-        time.sleep(15)
+        l2vpn_data = self.create_new_l2vpn(vlan='5000')
+        l2vpn_id = l2vpn_data['id']
 
         response = requests.get(API_URL)
         assert response.status_code == 200, response.text
@@ -575,51 +547,17 @@ class TestE2ETopologyUseCases:
         l2vpn_response = l2vpn_response.get(l2vpn_id)
         assert l2vpn_response.get("status") == "up", l2vpn_response
 
-    @pytest.mark.xfail(reason="The L2VPN with VLAN 1040 remains up even after modifying the VLAN range to [100–200]")
-    def test_104_expanding_vlan_nni_no_alternate_path(self):
+    @pytest.mark.xfail(reason="AssertionError: VLAN range 5000 is invalid, after expanding the range to [1,6000]")
+    def test_104_expanding_vlan_nni(self):
         """
         Use Case 10: OXPO sends a topology update with a changed VLAN range is for any of the services supported.
         """
 
-        l2vpn_data = self.create_new_l2vpn(vlan='1040')
-        l2vpn_id = l2vpn_data['id']
-
-        interfaces_id = 'cc:00:00:00:00:00:00:06:41'
-        interface_name = 'Tenet01-eth41'
+        interfaces_id = 'cc:00:00:00:00:00:00:08:2'
         tenet_api = KYTOS_API % 'tenet'
         api_url_tenet = f'{tenet_api}/topology/v3'
-        payload = {"sdx_vlan_range": [[100,200]]}
-        response = requests.post(f"{api_url_tenet}/interfaces/{interfaces_id}/metadata", json=payload)
-        assert response.status_code == 201, response.text
 
-        # Avoid alternative path
-        interfaces_id_2 = 'cc:00:00:00:00:00:00:06:1'
-        response = requests.post(f"{api_url_tenet}/interfaces/{interfaces_id_2}/metadata", json=payload)
-        assert response.status_code == 201, response.text
-
-        # Force to send the topology to the SDX-LC
-        sdx_api = KYTOS_SDX_API % 'tenet'
-        response = requests.post(f"{sdx_api}/topology/2.0.0")
-        assert response.status_code == 200, response.text
-
-        time.sleep(15)
-
-        response = requests.get(API_URL_TOPO)
-        data = response.json()
-        for node in data['nodes']: 
-            for port in node['ports']:
-                if port['name'] == interface_name:
-                    assert port['services']['l2vpn_ptp']['vlan_range'] == [[100,200]], port
-
-        response = requests.get(API_URL)
-        assert response.status_code == 200, response.text
-        l2vpn_response = response.json()
-        l2vpn_response = l2vpn_response.get(l2vpn_id)
-        assert l2vpn_response.get("status") == "error", l2vpn_response
-
-        # Expanding vlan
-
-        payload = {"sdx_vlan_range": [[100,2000]]}
+        payload = {"sdx_vlan_range": [[1,6000]]}
         response = requests.post(f"{api_url_tenet}/interfaces/{interfaces_id}/metadata", json=payload)
         assert response.status_code == 201, response.text
 
@@ -629,6 +567,9 @@ class TestE2ETopologyUseCases:
         assert response.status_code == 200, response.text
 
         time.sleep(15)
+
+        l2vpn_data = self.create_new_l2vpn(vlan='5000', node1='Ampath1', node2='Tenet03')
+        l2vpn_id = l2vpn_data['id']
 
         response = requests.get(API_URL)
         assert response.status_code == 200, response.text
