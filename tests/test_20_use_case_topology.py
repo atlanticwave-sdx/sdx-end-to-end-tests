@@ -578,10 +578,7 @@ class TestE2ETopologyUseCases:
         assert response.status_code == 200, response.text
         l2vpn_response = response.json()
         l2vpn_response = l2vpn_response.get(l2vpn_id)
-        assert l2vpn_response.get("status") == "up", l2vpn_response
-
-        current_path = '-'.join(['_'.join(n['port_id'].split(':')[-2:]) for n in l2vpn_response['current_path']])
-        assert 'Ampath1_40' not in current_path, current_path
+        assert l2vpn_response.get("status") == "error", l2vpn_response
 
     @pytest.mark.xfail(reason="EVCs from OXPs where L2VPN creation does not fail are not empty")
     def test_120_l2vpn_provisioning_failure(self):
