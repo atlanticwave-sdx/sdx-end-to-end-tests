@@ -512,7 +512,7 @@ class TestE2ETopologyUseCases:
 
         # Verify no L2VPN was created or modified
         final_data = requests.get(API_URL).json()
-        assert final_data[l2vpn_id] == l2vpn_data['data'], "L2VPN state changed unexpectedly
+        assert final_data[l2vpn_id] == l2vpn_data['data'], "L2VPN state changed unexpectedly"
   
     @pytest.mark.xfail(reason="The L2VPN with VLAN 1000 remains up even after modifying the VLAN range to [100–200].")
     def test_100_shrinking_vlan_uni(self):
