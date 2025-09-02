@@ -19,3 +19,7 @@ docker compose down -v
 ```
 
 (for the future, we should provide means to clean up the setup before each tests)
+
+## Interactive execution
+
+Interactive execution of the end-to-end tests is pretty useful for debuging and testing, specially when a test fails and the reason is not clear. See [instructions on how to use SDX end-to-end test during the development life cycle](./USING-E2E-DEV.md).

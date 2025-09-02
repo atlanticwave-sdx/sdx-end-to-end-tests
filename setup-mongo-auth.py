@@ -21,7 +21,10 @@ if ROOT_USER != USER:
             print("mongodb created successfully for DB=%s user=%s" % (DBNAME, USER))
             break
         except Exception as exc:
-            print("Error creating mongo DB: %s" % str(exc))
+            str_exc = str(exc)
+            if f"User \"{USER}@{DBNAME}\" already exists" in str_exc:
+                break
+            print(f"Error creating mongo DB: {str_exc}")
         time.sleep(2)
     else:
         print("fail to create mongodb")
