@@ -134,7 +134,7 @@ class TestE2ETopologyUseCases:
         self.net.net.configLinkStatus('Tenet01', 'Tenet03', 'down')
         
         # Step 3: Wait for topology update to propagate
-        time.sleep(10)
+        time.sleep(5)
         
         # Step 4: Verify topology is updated with link status down
         response = requests.get(API_URL_TOPO)
@@ -186,7 +186,7 @@ class TestE2ETopologyUseCases:
         self.net.net.configLinkStatus('Tenet01', 'Tenet02', 'down')
         
         # Step 3: Wait for topology update to propagate
-        time.sleep(10)
+        time.sleep(5)
         
         # Step 4: Verify topology is updated with link status down
         response = requests.get(API_URL_TOPO)
@@ -225,7 +225,7 @@ class TestE2ETopologyUseCases:
         Ampath1 = self.net.net.get('Ampath1')
         Ampath1.intf('Ampath1-eth40').ifconfig('down') 
 
-        time.sleep(15)
+        time.sleep(5)
 
         response = requests.get(API_URL)
         assert response.status_code == 200, response.text
@@ -240,7 +240,7 @@ class TestE2ETopologyUseCases:
         ### Reset 
         Ampath1.intf('Ampath1-eth40').ifconfig('up') 
 
-        time.sleep(15)
+        time.sleep(5)
 
         data = requests.get(API_URL).json()
         assert data[l2vpn_id]["status"] == "up"
@@ -264,7 +264,7 @@ class TestE2ETopologyUseCases:
         Tenet01.intf('Tenet01-eth41').ifconfig('down') 
         Tenet02.intf('Tenet02-eth41').ifconfig('down') 
 
-        time.sleep(15)
+        time.sleep(5)
 
         response = requests.get(API_URL_TOPO)
         assert response.status_code == 200, response.text
@@ -282,7 +282,7 @@ class TestE2ETopologyUseCases:
         Tenet01.intf('Tenet01-eth41').ifconfig('up') 
         Tenet02.intf('Tenet02-eth41').ifconfig('up') 
 
-        time.sleep(15)
+        time.sleep(5)
 
         response = requests.get(API_URL_TOPO)
         assert response.status_code == 200, response.text
@@ -317,7 +317,7 @@ class TestE2ETopologyUseCases:
         Tenet01 = self.net.net.get('Tenet01')
         Tenet01.intf('Tenet01-eth50').ifconfig('down') 
 
-        time.sleep(15)
+        time.sleep(5)
 
         data = requests.get(API_URL).json()
         assert data[l2vpn_id]["status"] == "down"  
@@ -328,7 +328,7 @@ class TestE2ETopologyUseCases:
         ### Reset 
         Tenet01.intf('Tenet01-eth50').ifconfig('up') 
 
-        time.sleep(15)
+        time.sleep(5)
 
         data = requests.get(API_URL).json()
         assert data[l2vpn_id]["status"] == "up"
@@ -355,7 +355,7 @@ class TestE2ETopologyUseCases:
         
         config = self.net.change_node_status(node_name)
 
-        time.sleep(15)
+        time.sleep(5)
         
         # status of the node should be down
         response_topology = requests.get(API_URL_TOPO)
@@ -393,7 +393,7 @@ class TestE2ETopologyUseCases:
 
         assert response_newl2vpn.status_code != 201, str(response_newl2vpn)
 
-        time.sleep(15)
+        time.sleep(5)
 
         # status of the node should be up
         response_topology = requests.get(API_URL_TOPO)
@@ -422,7 +422,7 @@ class TestE2ETopologyUseCases:
         Tenet01 = self.net.net.get('Tenet01')
         Tenet01.intf('Tenet01-eth2').ifconfig('down') 
 
-        time.sleep(15)
+        time.sleep(5)
 
         # Verify L2VPN status is down after link goes down
         response = requests.get(API_URL)
@@ -433,7 +433,7 @@ class TestE2ETopologyUseCases:
         # Bring the inter-domain port back up
         Tenet01.intf('Tenet01-eth2').ifconfig('up') 
 
-        time.sleep(15)
+        time.sleep(5)
 
         # Verify L2VPN status is up after link comes back up
         response = requests.get(API_URL)
@@ -458,7 +458,7 @@ class TestE2ETopologyUseCases:
         ampath_node = self.net.net.get('Ampath1')
         ampath_node.intf('Ampath1-eth50').ifconfig('down')
 
-        time.sleep(15)
+        time.sleep(5)
 
         # Verify L2VPN status is down
         response = requests.get(API_URL)
@@ -470,7 +470,7 @@ class TestE2ETopologyUseCases:
         # Simulate UNI port coming back up
         ampath_node.intf('Ampath1-eth50').ifconfig('up')
 
-        time.sleep(15)
+        time.sleep(5)
 
         # Verify L2VPN status is up again
         response = requests.get(API_URL)
@@ -496,7 +496,7 @@ class TestE2ETopologyUseCases:
         Ampath2 = self.net.net.get('Ampath2')
         Ampath2.intf('Ampath2-eth50').ifconfig('down') 
         
-        time.sleep(10)
+        time.sleep(5)
 
         # Create a L2VPN that is not associated with the port
         l2vpn_data = self.create_new_l2vpn(vlan='700')
@@ -508,7 +508,7 @@ class TestE2ETopologyUseCases:
 
         # Update port UP to trigger topology update
         Ampath2.intf('Ampath2-eth50').ifconfig('up') 
-        time.sleep(15)
+        time.sleep(5)
 
         # Verify no L2VPN was created or modified
         final_data = requests.get(API_URL).json()
