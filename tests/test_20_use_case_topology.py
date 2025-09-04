@@ -902,11 +902,11 @@ class TestE2ETopologyUseCases:
         at the installation time everything was going well until one OXP fails to create that breakdown
         To simulate that: instantiate an EVC on the Kytos controller of the OXP using the same vlan 
         """
-        # Simulate a control plane failure on tenet: Create an EVC on the Kytos controller of tenet using vlan 1200
+        # Simulate a control plane failure on tenet: Create an alien EVC on the Kytos controller of tenet using vlan 1200
         tenet_api = KYTOS_API % 'tenet'
         api_url_tenet_evc = f'{tenet_api}/mef_eline/v2/evc/'
         payload = {
-            "name": "Vlan_1200",
+            "name": "Vlan_1200-alien-evc",
             "enabled": True,
             "dynamic_backup_path": True,
             "uni_a": {
@@ -920,6 +920,7 @@ class TestE2ETopologyUseCases:
         }
         response = requests.post(api_url_tenet_evc, data=json.dumps(payload), headers={'Content-type': 'application/json'})
         assert response.status_code == 201, response.text
+        alien_evc_id = response.json()["circuit_id"]
 
         ampath_api = KYTOS_API % 'ampath'
         ampath_url = ampath_api + '/mef_eline/v2/evc/'
@@ -955,6 +956,10 @@ class TestE2ETopologyUseCases:
         
         # Wait for L2VPN to be provisioned
         time.sleep(5)
+
+        # before any extra check, remove the alien EVC to avoid error propagation
+        response = requests.delete(f"{api_url_tenet_evc}/{alien_evc_id}")
+        assert response.status_code == 200, response.text
 
         response = requests.get(API_URL)
         assert response.status_code == 200, response.text
