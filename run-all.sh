@@ -7,14 +7,15 @@ REP=$1
 test -z "$REP" && REP=1
 
 for i in $(seq 1 $REP); do
-	docker compose down -v 2>/dev/null; docker compose up -d 2>/dev/null;
+	docker compose down -v 2>/dev/null
+	docker compose up -d 2>/dev/null
 	
 	#for oxp in ampath tenet sax; do 
 	#	docker compose exec -it $oxp bash -c "apt-get update && apt-get install -y tcpdump; nohup tcpdump -i eth0 -w /captura.pcap & true"
 	#done
 	
 	./wait-mininet-ready.sh
-	docker compose exec -it mininet python3 -m pytest $TESTS | result-e2e.log
+	docker compose exec -it mininet python3 -m pytest $TESTS | tee result-e2e.log
 	
 	for oxp in ampath tenet sax; do
 		docker compose cp $oxp:/var/log/syslog /tmp/$i--$oxp.log; 
