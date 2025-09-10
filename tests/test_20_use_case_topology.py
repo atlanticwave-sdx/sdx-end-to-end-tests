@@ -982,3 +982,57 @@ class TestE2ETopologyUseCases:
         response = requests.get(API_URL)
         assert response.status_code == 200, response.text
         assert l2vpn_id not in response.json()
+
+    def test_140_create_l2vpn_with_vlan_range(self):
+        """
+        Use Case 14: User requests the creation of a L2VPN with VLAN Range.
+        """
+        # one invalid value
+        l2vpn_payload = {
+            "name": "Test L2VPN creation with VLANs range",
+            "endpoints": [
+                {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "4000:4099"},
+                {"port_id": "urn:sdx:port:sax.net:Sax01:50","vlan": "4000:4099"}
+            ]
+        }
+        response = requests.post(API_URL, json=l2vpn_payload)
+        assert response.status_code != 201, response.text
+        data = response.json()
+        l2vpn_one_invalid_id = data.get("service_id")
+
+        # invalid range
+        l2vpn_payload = {
+            "name": "Test L2VPN creation with VLANs range",
+            "endpoints": [
+                {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "5000:5099"},
+                {"port_id": "urn:sdx:port:sax.net:Sax01:50","vlan": "5000:5099"}
+            ]
+        }
+        response = requests.post(API_URL, json=l2vpn_payload)
+        assert response.status_code != 201, response.text
+        data = response.json()
+        l2vpn_invalid_id = data.get("service_id")
+
+        # valid range
+        l2vpn_payload = {
+            "name": "Test L2VPN creation with VLANs range",
+            "endpoints": [
+                {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "1400:1499"},
+                {"port_id": "urn:sdx:port:sax.net:Sax01:50","vlan": "1400:1499"}
+            ]
+        }
+        response = requests.post(API_URL, json=l2vpn_payload)
+        assert response.status_code == 201, response.text
+        data = response.json()
+        l2vpn_valid_id = data.get("service_id")
+        assert l2vpn_valid_id != None, str(data)
+
+        time.sleep(5)
+
+        response = requests.get(API_URL)
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert len(data) == 1
+        assert data[l2vpn_valid_id].get("status") == "up", str(data)
+        assert l2vpn_one_invalid_id not in data, str(data)
+        assert l2vpn_invalid_id not in data, str(data)
