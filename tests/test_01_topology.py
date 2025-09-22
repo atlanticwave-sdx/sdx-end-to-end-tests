@@ -162,3 +162,30 @@ class TestE2ETopology:
         response = requests.get(api_url)
         data = response.json()
         assert version < float(data["version"]), f"sdx_version={data['version']} {oxp_ver1=} {oxp_ver2=}"
+
+    @pytest.mark.xfail(reason="No error after modifying the VLAN range to [1-6000]")
+    def test_040_changing_inavalid_vlan_range(self):
+        """
+        Change VLAN range to an invalide range.
+        """
+
+        interfaces_id = 'aa:00:00:00:00:00:00:01:50'
+        ampath_api = KYTOS_API % 'ampath'
+        api_url_ampath = f'{ampath_api}/topology/v3'
+
+        payload = {
+            #"sdx_vlan_range": [[1,6000]]
+            "sdx_vlan_range": [[1,4000]]
+        }
+        response = requests.post(f"{api_url_ampath}/interfaces/{interfaces_id}/metadata", json=payload)
+        assert response.status_code != 201, response.text
+
+        url = 'http://%s:8181/api/kytos/mef_eline/v2/evc/'
+        ampath_url = url % 'ampath'
+        response = requests.get(ampath_url)
+        evcs = response.json()
+        found = 0
+        for evc in evcs.values():
+            if evc.get("uni_a", {}).get("tag", {}).get("value") == [[1,6000]]:
+                found += 1
+        assert found == 0, response.text
