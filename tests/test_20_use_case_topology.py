@@ -69,7 +69,7 @@ class TestE2ETopologyUseCases:
 
     def create_new_l2vpn(self, vlan='100', node1='Ampath1', node2='Tenet01'):
         l2vpn_payload = {
-            "name": "Test L2VPN",
+            "name": f"Test L2VPN vlan {vlan}",
             "endpoints": [
                 {
                     "port_id": UNI2HOST[node1]['id'],
@@ -638,7 +638,7 @@ class TestE2ETopologyUseCases:
                     assert port['services']['l2vpn_ptp']['vlan_range'] == [[100,200]], port
 
         l2vpn_payload = {
-            "name": "Test L2VPN",
+            "name": "Test L2VPN vlan 1010",
             "endpoints": [
                 {
                     "port_id": "urn:sdx:port:ampath.net:Ampath1:50",
