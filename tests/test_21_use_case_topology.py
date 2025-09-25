@@ -53,7 +53,7 @@ class TestE2ETopologyUseCases:
 
     def create_new_l2vpn(self, vlan='100', node1='Ampath1', node2='Tenet01'):
         l2vpn_payload = {
-            "name": "Test L2VPN",
+            "name": f"Test L2VPN vlan {vlan}",
             "endpoints": [
                 {
                     "port_id": UNI2HOST[node1]['id'],
