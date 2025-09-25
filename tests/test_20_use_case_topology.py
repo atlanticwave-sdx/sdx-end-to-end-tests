@@ -92,7 +92,7 @@ class TestE2ETopologyUseCases:
         assert response.status_code == 200, response.text
         l2vpn_data = response.json().get(l2vpn_id)
         l2vpn_status = l2vpn_data.get("status")
-        assert l2vpn_status == "up", f"L2VPN status should be up, but is {l2vpn_status}"
+        assert l2vpn_status == "up", str(l2vpn_data)
 
         add1 = f"10.{int(int(vlan)/10)}.1.{UNI2HOST[node1]['host']}"
         add2 = f"10.{int(int(vlan)/10)}.1.{UNI2HOST[node2]['host']}"
@@ -378,6 +378,9 @@ class TestE2ETopologyUseCases:
             ]
         }
         response_newl2vpn = requests.post(API_URL, json=new_l2vpn_payload)
+
+        # allow time to propagate changes
+        time.sleep(5)
 
         ### Reset (before any assertion to avoid failures)
         self.net.change_node_status(node_name, config)
