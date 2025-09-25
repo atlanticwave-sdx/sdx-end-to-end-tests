@@ -982,3 +982,56 @@ class TestE2ETopologyUseCases:
         response = requests.get(API_URL)
         assert response.status_code == 200, response.text
         assert l2vpn_id not in response.json()
+
+    @pytest.mark.xfail(reason="Code 201 returned after modifying the VLAN range to [1-6000]")
+    def test_141_changing_invalid_vlan_range(self):
+        """
+        Change VLAN range to an invalide range.
+        """
+
+        interfaces_id = 'aa:00:00:00:00:00:00:01:50'
+        interface_name = 'Ampath1-eth50'
+        ampath_api = KYTOS_API % 'ampath'
+        api_url_ampath = f'{ampath_api}/topology/v3'
+          
+        sdx_api = KYTOS_SDX_API % 'ampath'
+        response = requests.get(f"{sdx_api}/topology/2.0.0")
+        assert response.status_code == 200
+        data = response.json()
+        for node in data['nodes']: 
+            for port in node['ports']:
+                if port['name'] == interface_name:
+                    first_vlan_range = port['services']['l2vpn-ptp']['vlan_range']
+
+        payload = {
+            "sdx_vlan_range": [[1,6000]]
+        }
+        response = requests.post(f"{api_url_ampath}/interfaces/{interfaces_id}/metadata", json=payload)
+        assert response.status_code != 201, response.text
+
+        time.sleep(5)
+          
+        response = requests.get(f"{sdx_api}/topology/2.0.0")
+        assert response.status_code == 200
+        data = response.json()
+        for node in data['nodes']: 
+            for port in node['ports']:
+                if port['name'] == interface_name:
+                    assert port['services']['l2vpn-ptp']['vlan_range'] == first_vlan_range, port
+
+        # check that services remain working fine
+        l2vpn_data = self.create_new_l2vpn(vlan='1410')
+        l2vpn_id = l2vpn_data['id']
+        first_path = l2vpn_data['data']['current_path']
+
+        Ampath1 = self.net.net.get('Ampath1')
+        Ampath1.intf('Ampath1-eth40').ifconfig('down') 
+
+        time.sleep(5)
+
+        response = requests.get(API_URL)
+        assert response.status_code == 200, response.text
+        l2vpn_response = response.json().get(l2vpn_id)
+        l2vpn_status = l2vpn_response.get("status")
+        assert l2vpn_status == "up"
+        assert l2vpn_response['current_path'] != first_path
