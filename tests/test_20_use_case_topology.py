@@ -69,7 +69,7 @@ class TestE2ETopologyUseCases:
 
     def create_new_l2vpn(self, vlan='100', node1='Ampath1', node2='Tenet01'):
         l2vpn_payload = {
-            "name": "Test L2VPN",
+            "name": f"Test L2VPN vlan {vlan}",
             "endpoints": [
                 {
                     "port_id": UNI2HOST[node1]['id'],
@@ -92,7 +92,7 @@ class TestE2ETopologyUseCases:
         assert response.status_code == 200, response.text
         l2vpn_data = response.json().get(l2vpn_id)
         l2vpn_status = l2vpn_data.get("status")
-        assert l2vpn_status == "up", f"L2VPN status should be up, but is {l2vpn_status}"
+        assert l2vpn_status == "up", str(l2vpn_data)
 
         add1 = f"10.{int(int(vlan)/10)}.1.{UNI2HOST[node1]['host']}"
         add2 = f"10.{int(int(vlan)/10)}.1.{UNI2HOST[node2]['host']}"
@@ -379,6 +379,9 @@ class TestE2ETopologyUseCases:
         }
         response_newl2vpn = requests.post(API_URL, json=new_l2vpn_payload)
 
+        # allow time to propagate changes
+        time.sleep(5)
+
         ### Reset (before any assertion to avoid failures)
         self.net.change_node_status(node_name, config)
 
@@ -635,7 +638,7 @@ class TestE2ETopologyUseCases:
                     assert port['services']['l2vpn_ptp']['vlan_range'] == [[100,200]], port
 
         l2vpn_payload = {
-            "name": "Test L2VPN",
+            "name": "Test L2VPN vlan 1010",
             "endpoints": [
                 {
                     "port_id": "urn:sdx:port:ampath.net:Ampath1:50",

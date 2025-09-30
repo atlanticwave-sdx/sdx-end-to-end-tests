@@ -33,6 +33,8 @@ class TestE2EReturnCodesListL2vpn:
         response_json = response.json()
         for l2vpn in response_json:
             response = requests.delete(api_url+f'/{l2vpn}')
+        # allow a few seconds so that SDX-Controller can propagate changes
+        time.sleep(3)
         # Create an L2VPN to list later
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         cls.payload = {
@@ -46,14 +48,14 @@ class TestE2EReturnCodesListL2vpn:
         assert response.status_code == 201, response.text
         cls.key = response.json()["service_id"]
         # allow a few seconds so that SDX-Controller can propagate changes
-        time.sleep(3)
+        time.sleep(5)
 
     def _add_l2vpn(self, n = 2):
         '''Auxiliar function'''
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         for i in range(n):
             payload = {
-                "name": "Test L2VPN request",
+                "name": f"Test L2VPN request within loop i={i}",
                 "endpoints": [
                     {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": str(i+1)},
                     {"port_id": "urn:sdx:port:tenet.ac.za:Tenet03:50","vlan": str(i+1)}
@@ -101,6 +103,10 @@ class TestE2EReturnCodesListL2vpn:
         200: Ok
         """
         self._add_l2vpn()
+
+        # wait for changes to be propagated
+        time.sleep(5)
+
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         response = requests.get(api_url)
         assert response.status_code == 200, response.text
