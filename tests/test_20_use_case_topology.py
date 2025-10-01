@@ -985,3 +985,60 @@ class TestE2ETopologyUseCases:
         response = requests.get(API_URL)
         assert response.status_code == 200, response.text
         assert l2vpn_id not in response.json()
+
+    #@pytest.mark.xfail(reason="AssertionError: OXPs aren't empty")
+    def test_140_create_l2vpn_with_vlan_range(self):
+        """
+        Use Case 14: User requests the creation of a L2VPN with VLAN Range.
+        """
+
+        # invalid range
+        l2vpn_payload = {
+            "name": "Test L2VPN creation with VLANs range",
+            "endpoints": [
+                {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "5000:5099"},
+                {"port_id": "urn:sdx:port:sax.net:Sax01:50","vlan": "5000:5099"}
+            ]
+        }
+        response = requests.post(API_URL, json=l2vpn_payload)
+        assert response.status_code != 201, response.text
+        data = response.json()
+        l2vpn_invalid_id = data.get("service_id")
+
+        time.sleep(5)
+
+        response = requests.get(API_URL)
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert len(data) == 0, str(data)
+        assert l2vpn_invalid_id not in data, str(data)
+
+        # check the the correspondent L2VPN is not on the OXPs.
+        url = 'http://%s:8181/api/kytos/mef_eline/v2/evc/'
+        ## ampath
+        ampath_url = url % 'ampath'
+        response = requests.get(ampath_url)
+        evcs = response.json()
+        found = 0
+        for evc in evcs.values():
+            if evc.get("uni_a", {}).get("tag", {}).get("value") == [[5000,5099]]:
+                found += 1
+        assert found == 0, response.text
+        ## sax
+        sax_url = url % 'sax'
+        response = requests.get(sax_url)
+        evcs = response.json()
+        found = 0
+        for evc in evcs.values():
+            if evc.get("uni_a", {}).get("tag", {}).get("value") == [[5000,5099]]:
+                found += 1
+        assert found == 0, response.text
+        ## tenet
+        tenet_url = url % 'tenet'
+        response = requests.get(tenet_url)
+        evcs = response.json()
+        found = 0
+        for evc in evcs.values():
+            if evc.get("uni_a", {}).get("tag", {}).get("value") == [[5000,5099]]:
+                found += 1
+        assert found == 0, response.text
