@@ -986,12 +986,67 @@ class TestE2ETopologyUseCases:
         assert response.status_code == 200, response.text
         assert l2vpn_id not in response.json()
 
-    #@pytest.mark.xfail(reason="Code 201 returned after modifying the VLAN range to [1-6000]")
+    def test_140_create_l2vpn_with_vlan_range(self):
+        """
+        Use Case 14: User requests the creation of a L2VPN with VLAN Range.
+        """
+
+        # invalid range
+        l2vpn_payload = {
+            "name": "Test L2VPN creation with VLANs range",
+            "endpoints": [
+                {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "5000:5099"},
+                {"port_id": "urn:sdx:port:sax.net:Sax01:50","vlan": "5000:5099"}
+            ]
+        }
+        response = requests.post(API_URL, json=l2vpn_payload)
+        assert response.status_code != 201, response.text
+        data = response.json()
+        l2vpn_invalid_id = data.get("service_id")
+
+        time.sleep(5)
+
+        response = requests.get(API_URL)
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert len(data) == 0, str(data)
+        assert l2vpn_invalid_id not in data, str(data)
+
+        # check the the correspondent L2VPN is not on the OXPs.
+        url = 'http://%s:8181/api/kytos/mef_eline/v2/evc/'
+        ## ampath
+        ampath_url = url % 'ampath'
+        response = requests.get(ampath_url)
+        evcs = response.json()
+        found = 0
+        for evc in evcs.values():
+            if evc.get("uni_a", {}).get("tag", {}).get("value") == [[5000,5099]]:
+                found += 1
+        assert found == 0, response.text
+        ## sax
+        sax_url = url % 'sax'
+        response = requests.get(sax_url)
+        evcs = response.json()
+        found = 0
+        for evc in evcs.values():
+            if evc.get("uni_a", {}).get("tag", {}).get("value") == [[5000,5099]]:
+                found += 1
+        assert found == 0, response.text
+        ## tenet
+        tenet_url = url % 'tenet'
+        response = requests.get(tenet_url)
+        evcs = response.json()
+        found = 0
+        for evc in evcs.values():
+            if evc.get("uni_a", {}).get("tag", {}).get("value") == [[5000,5099]]:
+                found += 1
+        assert found == 0, response.text
+
+    @pytest.mark.xfail(reason="Code 201 returned after modifying the VLAN range to [1-6000]")
     def test_141_changing_invalid_vlan_range(self):
         """
         Change VLAN range to an invalide range.
         """
-
         interfaces_id = 'aa:00:00:00:00:00:00:01:50'
         interface_name = 'Ampath1-eth50'
         ampath_api = KYTOS_API % 'ampath'
@@ -1007,22 +1062,27 @@ class TestE2ETopologyUseCases:
                     first_vlan_range = port['services']['l2vpn-ptp']['vlan_range']
 
         payload = {
-            "sdx_vlan_range": [[1,6000]]
+            "sdx_vlan_range": [[1,4000]]
         }
         response = requests.post(f"{api_url_ampath}/interfaces/{interfaces_id}/metadata", json=payload)
-        ### ERROR: code 201 received with an invalid vlan range.
-        #assert response.status_code != 201, response.text
+        status_code_response_first = response.status_code
+        ### status_code_response_first should be different from 201
+
+        # Force the Kytos SDX controller controller to send the topology to the SDX-LC 
+        response = requests.post(f"{sdx_api}/topology/2.0.0") 
+        assert response.status_code == 200 
 
         time.sleep(5)
           
-        ### ERROR: The VLAN was updated to the invalid range.
-        # response = requests.get(f"{sdx_api}/topology/2.0.0")
-        # assert response.status_code == 200
-        # data = response.json()
-        # for node in data['nodes']: 
-        #     for port in node['ports']:
-        #         if port['name'] == interface_name:
-        #             assert port['services']['l2vpn-ptp']['vlan_range'] == first_vlan_range, port
+        ## ERROR: The VLAN was updated to the invalid range.
+        response = requests.get(f"{sdx_api}/topology/2.0.0")
+        assert response.status_code == 200
+        data = response.json()
+        for node in data['nodes']: 
+            for port in node['ports']:
+                if port['name'] == interface_name:
+                    new_vlan_range = port['services']['l2vpn-ptp']['vlan_range']
+                    ### new_vlan_range should be equal to first_vlan_range
 
         # check that services remain working fine
         l2vpn_data = self.create_new_l2vpn(vlan='1410')
@@ -1038,11 +1098,8 @@ class TestE2ETopologyUseCases:
         assert response.status_code == 200, response.text
         l2vpn_response = response.json().get(l2vpn_id)
         l2vpn_status = l2vpn_response.get("status")
-        ### Status of L2VPN is down: 
-        ### Once the issue of accepting an invalid VLAN range is resolved, 
-        ### the L2VPN should continue operating using an alternative path with status up.
-        #assert l2vpn_status == "up"
-        #assert l2vpn_response['current_path'] != first_path
+        assert l2vpn_status == "up"
+        assert l2vpn_response['current_path'] != first_path
 
         # Restore to the original state
         payload = {
@@ -1050,3 +1107,6 @@ class TestE2ETopologyUseCases:
         }
         response = requests.post(f"{api_url_ampath}/interfaces/{interfaces_id}/metadata", json=payload)
         assert response.status_code == 201, response.text
+
+        assert status_code_response_first != 201
+        assert new_vlan_range == first_vlan_range
