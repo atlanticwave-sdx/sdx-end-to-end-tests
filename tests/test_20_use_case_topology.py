@@ -986,7 +986,6 @@ class TestE2ETopologyUseCases:
         assert response.status_code == 200, response.text
         assert l2vpn_id not in response.json()
 
-    #@pytest.mark.xfail(reason="AssertionError: OXPs aren't empty")
     def test_140_create_l2vpn_with_vlan_range(self):
         """
         Use Case 14: User requests the creation of a L2VPN with VLAN Range.
@@ -1042,3 +1041,94 @@ class TestE2ETopologyUseCases:
             if evc.get("uni_a", {}).get("tag", {}).get("value") == [[5000,5099]]:
                 found += 1
         assert found == 0, response.text
+
+    @pytest.mark.xfail(reason="Topology after port status not changed after modifying the VLAN range to [1-6000]")
+    def test_141_changing_invalid_vlan_range(self):
+        """
+        Change VLAN range to an invalide range.
+        """
+        interfaces_id = 'aa:00:00:00:00:00:00:01:50'
+        interface_name = 'Ampath1-eth50'
+        ampath_api = KYTOS_API % 'ampath'
+        api_url_ampath = f'{ampath_api}/topology/v3'
+
+        sdx_api = KYTOS_SDX_API % 'ampath'
+        response = requests.get(f"{sdx_api}/topology/2.0.0")
+        assert response.status_code == 200
+        data = response.json()
+        first_vlan_range = None
+        for node in data['nodes']:
+            for port in node['ports']:
+                if port['name'] == interface_name:
+                    first_vlan_range = port['services']['l2vpn-ptp']['vlan_range']
+                    break
+            if first_vlan_range is not None:
+                break
+
+        payload = {
+            "sdx_vlan_range": [[1,6000]]
+        }
+        response = requests.post(f"{api_url_ampath}/interfaces/{interfaces_id}/metadata", json=payload)
+        assert response.status_code == 201
+
+        # Force the Kytos SDX controller controller to send the topology to the SDX-LC
+        response = requests.post(f"{sdx_api}/topology/2.0.0")
+        assert response.status_code == 200
+
+        time.sleep(5)
+
+        response = requests.get(API_URL_TOPO)
+        assert response.status_code == 200
+        data = response.json()
+        new_vlan_range = None
+        for node in data['nodes']:
+            for port in node['ports']:
+                if port['name'] == interface_name:
+                    new_vlan_range = port['services']['l2vpn_ptp']['vlan_range']
+                    break
+            if new_vlan_range is not None:
+                break
+
+        # check that services remain working fine
+        l2vpn_data = self.create_new_l2vpn(vlan='1410')
+        l2vpn_id = l2vpn_data['id']
+        first_path = l2vpn_data['data']['current_path']
+
+        test_intf_name = 'Ampath2-eth40'
+        ampath2 = self.net.net.get('Ampath2')
+        ampath2.intf(test_intf_name).ifconfig('down')
+
+        time.sleep(5)
+
+        response = requests.get(API_URL)
+        assert response.status_code == 200, response.text
+        l2vpn_response = response.json().get(l2vpn_id)
+
+        response = requests.get(API_URL_TOPO)
+        assert response.status_code == 200, response.text
+        topology_after = response.json()
+
+        # Restore to the original state
+        payload = {
+            "sdx_vlan_range": first_vlan_range
+        }
+        response = requests.post(f"{api_url_ampath}/interfaces/{interfaces_id}/metadata", json=payload)
+        assert response.status_code == 201, response.text
+
+        ampath2.intf(test_intf_name).ifconfig('up')
+
+        time.sleep(5)
+
+        # Verifications
+        found = False
+        for node in topology_after['nodes']:
+            for port in node['ports']:
+                if port['name'] == test_intf_name:
+                    assert port["status"] == "down", str(port)
+                    found = True
+                    break
+            if found:
+                break
+        assert l2vpn_response.get("status") == "up"
+        assert l2vpn_response['current_path'] != first_path
+        assert new_vlan_range == first_vlan_range
