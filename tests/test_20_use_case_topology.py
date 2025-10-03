@@ -1042,7 +1042,7 @@ class TestE2ETopologyUseCases:
                 found += 1
         assert found == 0, response.text
 
-    @pytest.mark.xfail(reason="Code 201 returned after modifying the VLAN range to [1-6000]")
+    @pytest.mark.xfail(reason="Topology after port status not changed after modifying the VLAN range to [1-6000]")
     def test_141_changing_invalid_vlan_range(self):
         """
         Change VLAN range to an invalide range.
@@ -1051,55 +1051,62 @@ class TestE2ETopologyUseCases:
         interface_name = 'Ampath1-eth50'
         ampath_api = KYTOS_API % 'ampath'
         api_url_ampath = f'{ampath_api}/topology/v3'
-          
+
         sdx_api = KYTOS_SDX_API % 'ampath'
         response = requests.get(f"{sdx_api}/topology/2.0.0")
         assert response.status_code == 200
         data = response.json()
-        for node in data['nodes']: 
+        first_vlan_range = None
+        for node in data['nodes']:
             for port in node['ports']:
                 if port['name'] == interface_name:
                     first_vlan_range = port['services']['l2vpn-ptp']['vlan_range']
+                    break
+            if first_vlan_range is not None:
+                break
 
         payload = {
-            "sdx_vlan_range": [[1,4000]]
+            "sdx_vlan_range": [[1,6000]]
         }
         response = requests.post(f"{api_url_ampath}/interfaces/{interfaces_id}/metadata", json=payload)
-        status_code_response_first = response.status_code
-        ### status_code_response_first should be different from 201
+        assert response.status_code == 201
 
-        # Force the Kytos SDX controller controller to send the topology to the SDX-LC 
-        response = requests.post(f"{sdx_api}/topology/2.0.0") 
-        assert response.status_code == 200 
+        # Force the Kytos SDX controller controller to send the topology to the SDX-LC
+        response = requests.post(f"{sdx_api}/topology/2.0.0")
+        assert response.status_code == 200
 
         time.sleep(5)
-          
-        ## ERROR: The VLAN was updated to the invalid range.
-        response = requests.get(f"{sdx_api}/topology/2.0.0")
+
+        response = requests.get(API_URL_TOPO)
         assert response.status_code == 200
         data = response.json()
-        for node in data['nodes']: 
+        new_vlan_range = None
+        for node in data['nodes']:
             for port in node['ports']:
                 if port['name'] == interface_name:
-                    new_vlan_range = port['services']['l2vpn-ptp']['vlan_range']
-                    ### new_vlan_range should be equal to first_vlan_range
+                    new_vlan_range = port['services']['l2vpn_ptp']['vlan_range']
+                    break
+            if new_vlan_range is not None:
+                break
 
         # check that services remain working fine
         l2vpn_data = self.create_new_l2vpn(vlan='1410')
         l2vpn_id = l2vpn_data['id']
         first_path = l2vpn_data['data']['current_path']
 
-        Ampath1 = self.net.net.get('Ampath1')
-        Ampath1.intf('Ampath1-eth40').ifconfig('down') 
+        test_intf_name = 'Ampath2-eth40'
+        ampath2 = self.net.net.get('Ampath2')
+        ampath2.intf(test_intf_name).ifconfig('down')
 
         time.sleep(5)
 
         response = requests.get(API_URL)
         assert response.status_code == 200, response.text
         l2vpn_response = response.json().get(l2vpn_id)
-        l2vpn_status = l2vpn_response.get("status")
-        assert l2vpn_status == "up"
-        assert l2vpn_response['current_path'] != first_path
+
+        response = requests.get(API_URL_TOPO)
+        assert response.status_code == 200, response.text
+        topology_after = response.json()
 
         # Restore to the original state
         payload = {
@@ -1108,5 +1115,20 @@ class TestE2ETopologyUseCases:
         response = requests.post(f"{api_url_ampath}/interfaces/{interfaces_id}/metadata", json=payload)
         assert response.status_code == 201, response.text
 
-        assert status_code_response_first != 201
+        ampath2.intf(test_intf_name).ifconfig('up')
+
+        time.sleep(5)
+
+        # Verifications
+        found = False
+        for node in topology_after['nodes']:
+            for port in node['ports']:
+                if port['name'] == test_intf_name:
+                    assert port["status"] == "down", str(port)
+                    found = True
+                    break
+            if found:
+                break
+        assert l2vpn_response.get("status") == "up"
+        assert l2vpn_response['current_path'] != first_path
         assert new_vlan_range == first_vlan_range
