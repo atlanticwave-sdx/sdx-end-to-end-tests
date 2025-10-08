@@ -1132,3 +1132,23 @@ class TestE2ETopologyUseCases:
         assert l2vpn_response.get("status") == "up"
         assert l2vpn_response['current_path'] != first_path
         assert new_vlan_range == first_vlan_range
+ 
+    def test_check_empty_list_l2vpn(self):
+        """ Check that all L2VPNs were deleted with setup_method"""
+
+        url = 'http://%s:8181/api/kytos/mef_eline/v2/evc/'
+        ## ampath
+        ampath_url = url % 'ampath'
+        response = requests.get(ampath_url)
+        evcs = response.json()
+        assert len(evcs) == 0, evcs
+        ## sax
+        sax_url = url % 'sax'
+        response = requests.get(sax_url)
+        evcs = response.json()
+        assert len(evcs) == 0, evcs
+        ## tenet
+        sax_url = url % 'tenet'
+        response = requests.get(sax_url)
+        evcs = response.json()
+        assert len(evcs) == 0, evcs
