@@ -1176,6 +1176,6 @@ class TestE2ETopologyUseCases:
         evcs = response.json()
         found = 0
         for evc in evcs.values():
-            if evc.get("uni_a", {}).get("tag", {}).get("value") == [[3000,3000]]:
+            if evc.get("uni_z", {}).get("tag", {}).get("value") == [[3000,3000]]:
                 found += 1
         assert found == 1, response.text
