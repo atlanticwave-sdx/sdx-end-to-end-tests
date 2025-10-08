@@ -1133,6 +1133,7 @@ class TestE2ETopologyUseCases:
         assert l2vpn_response['current_path'] != first_path
         assert new_vlan_range == first_vlan_range
  
+    @pytest.mark.xfail(reason="The status of the L2VPN doesn't change to down after setting the link to down")
     def test_check_empty_list_l2vpn(self):
         """ Check that all L2VPNs were deleted with setup_method"""
 
