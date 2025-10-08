@@ -1140,7 +1140,7 @@ class TestE2ETopologyUseCases:
         """
 
         l2vpn_payload = {
-            "name": "Test L2VPN creation with VLANs range",
+            "name": "Test 20 / 142 - L2VPN creation with one item VLANs range",
             "endpoints": [
                 {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "3000:3000"},
                 {"port_id": "urn:sdx:port:sax.net:Sax01:50","vlan": "3000:3000"}
