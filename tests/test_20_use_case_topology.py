@@ -1139,7 +1139,7 @@ class TestE2ETopologyUseCases:
         Use Case 14: User requests the creation of a L2VPN with VLAN Range.
         """
         l2vpn_payload = {
-            "name": "Test L2VPN creation with VLANs range",
+            "name": "Test 20 / 142 - L2VPN creation with one item VLANs range",
             "endpoints": [
                 {"port_id": "urn:sdx:port:ampath.net:Ampath3:50","vlan": "3000:3000"},
                 {"port_id": "urn:sdx:port:sax.net:Sax01:50","vlan": "3000:3000"}
@@ -1176,7 +1176,7 @@ class TestE2ETopologyUseCases:
         evcs = response.json()
         found = 0
         for evc in evcs.values():
-            if evc.get("uni_a", {}).get("tag", {}).get("value") == [[3000,3000]]:
+            if evc.get("uni_z", {}).get("tag", {}).get("value") == [[3000,3000]]:
                 found += 1
         assert found == 1, response.text
 
