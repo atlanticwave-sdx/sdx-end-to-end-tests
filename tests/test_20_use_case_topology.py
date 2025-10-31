@@ -1156,7 +1156,6 @@ class TestE2ETopologyUseCases:
         assert response.status_code == 200, response.text
         data = response.json()
         assert data.get(l2vpn_id).get("status") == "up", data
-          
         # check the correspondent L2VPN is not on the OXPs.
         url = 'http://%s:8181/api/kytos/mef_eline/v2/evc/'
         ## ampath
