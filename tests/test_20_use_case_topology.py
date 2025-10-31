@@ -1137,7 +1137,6 @@ class TestE2ETopologyUseCases:
         """
         Use Case 14: User requests the creation of a L2VPN with VLAN Range.
         """
-
         l2vpn_payload = {
             "name": "Test 20 / 142 - L2VPN creation with one item VLANs range",
             "endpoints": [
