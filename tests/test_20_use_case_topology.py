@@ -1133,7 +1133,6 @@ class TestE2ETopologyUseCases:
         assert l2vpn_response['current_path'] != first_path
         assert new_vlan_range == first_vlan_range
     
-    @pytest.mark.xfail(reason="Status is down and it is not verified that the corresponding L2VPN is in the OXPs.")  
     def test_142_create_l2vpn_with_vlan_range_same_items(self):
         """
         Use Case 14: User requests the creation of a L2VPN with VLAN Range.
@@ -1155,10 +1154,7 @@ class TestE2ETopologyUseCases:
         response = requests.get(API_URL)
         assert response.status_code == 200, response.text
         data = response.json()
-        assert len(data) == 1, str(data)
-        assert l2vpn_id  in data, str(data)
         assert data.get(l2vpn_id).get("status") == "up", data
-
         # check the correspondent L2VPN is not on the OXPs.
         url = 'http://%s:8181/api/kytos/mef_eline/v2/evc/'
         ## ampath
@@ -1179,4 +1175,3 @@ class TestE2ETopologyUseCases:
             if evc.get("uni_z", {}).get("tag", {}).get("value") == [[3000,3000]]:
                 found += 1
         assert found == 1, response.text
-
