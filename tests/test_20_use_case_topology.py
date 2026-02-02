@@ -49,6 +49,17 @@ class TestE2ETopologyUseCases:
     def teardown_class(cls):
         """Clean up the test environment."""
         cls.net.stop()
+    
+    @classmethod
+    def delete_all_kytos_l2vpns(cls):
+        for domain in ['ampath', 'tenet', 'sax']:
+            api = KYTOS_API % domain
+            url = api + '/mef_eline/v2/evc/'
+            evcs = requests.get(url).json()
+
+            for evc_id in evcs.keys():
+                resp = requests.delete(url + evc_id)
+                assert resp.status_code in (200, 204), resp.text
 
     @classmethod
     def setup_method(cls):
@@ -66,6 +77,7 @@ class TestE2ETopologyUseCases:
 
         cls.net.config_all_links_up()
         time.sleep(5)  # Allow time for topology to stabilize
+        cls.delete_all_kytos_l2vpns()
 
     def create_new_l2vpn(self, vlan='100', node1='Ampath1', node2='Tenet01'):
         l2vpn_payload = {
@@ -108,7 +120,6 @@ class TestE2ETopologyUseCases:
         assert ', 0% packet loss,' in h1.cmd(f"ping -c4 {add2}")
         return {'id':l2vpn_id, 'data':l2vpn_data, 'h':h1, 'ping_str':f"ping -c4 {add2}"}
 
-    @pytest.mark.xfail(reason="The status of the L2VPN doesn't change to down after setting the link to down")
     def test_010_intra_domain_link_down(self):
         """
         Use Case 1: Intra-domain Link Status Change (Down)
@@ -212,6 +223,47 @@ class TestE2ETopologyUseCases:
         assert len(initial_topology["nodes"]) == len(updated_topology["nodes"]), "Number of nodes changed"
         assert len(initial_topology["links"]) == len(updated_topology["links"]), "Number of links changed"
 
+    def test_012_red_l2vpn_intra_failures_status_update(self):
+        """
+        End-to-end test for RED L2VPN Use Case 1 intra-domain failures handling.
+
+        - Creates inter-domain L2VPN Ampath3:50 - Sax01:50
+        - Simulates intra-domain failures in Ampath (Ampath1--Ampath3 and Ampath1--Ampath2 down)
+        - Verifies permanent loss of connectivity (no reprovision possible in this scenario)
+        - Restore one link and verify if SDX-Controller reprovisions (status - UP with new path)
+        """
+
+        # Create inter-domain L2VPN
+        l2vpn_info = self.create_new_l2vpn(vlan="120", node1="Ampath3", node2="Sax01")
+        l2vpn_id = l2vpn_info['id']
+
+        # Simulate the intra-domain failures in Ampath
+        self.net.net.configLinkStatus('Ampath1', 'Ampath3', 'down')
+        self.net.net.configLinkStatus('Ampath1', 'Ampath2', 'down')
+
+        # Give time for link down to propagate to Kytos / OXPO
+        time.sleep(5)
+
+        response = requests.get(API_URL)
+        l2vpn_data = response.json().get(l2vpn_id)
+        l2vpn_status = l2vpn_data.get("status")
+        assert l2vpn_status == "down", str(l2vpn_data)
+
+        assert ', 100% packet loss,' not in l2vpn_info['h'].cmd(l2vpn_info['ping_str']), "No verify loss of connectivity"
+ 
+        # Test reprovisioning behavior 
+        # Restore one of the failed links and check if SDX-Controller finds an alternative path
+        self.net.net.configLinkStatus('Ampath1', 'Ampath2', 'up')
+        time.sleep(10)  # Wait for topology update
+        
+        response = requests.get(API_URL)
+        l2vpn_data = response.json().get(l2vpn_id)
+        l2vpn_status = l2vpn_data.get("status")
+        assert l2vpn_status == "up", str(l2vpn_data)
+        
+        # Verify connectivity is restored
+        assert ', 0% packet loss,' in l2vpn_info['h'].cmd(l2vpn_info['ping_str']), "Connectivity not restored after reprovision"
+
     def test_020_port_in_inter_domain_link_down(self):
         """ 
         Use case 2: OXPO sends a topology update with a Port Down and that port is part of an inter-domain link.
@@ -248,7 +300,7 @@ class TestE2ETopologyUseCases:
         # test connectivity
         assert ', 0% packet loss,' in l2vpn_data['h'].cmd(l2vpn_data['ping_str'])
 
-    @pytest.mark.xfail(reason="The L2VPN is removed after changing nodes to down")
+    @pytest.mark.xfail(reason="L2VPN doesn't change to down after setting a link to down")
     def test_021_port_in_inter_domain_link_down_no_reprov(self):
         """ 
         Use case 2: OXPO sends a topology update with a Port Down and that port is part of an inter-domain link.
@@ -1175,3 +1227,4 @@ class TestE2ETopologyUseCases:
             if evc.get("uni_z", {}).get("tag", {}).get("value") == [[3000,3000]]:
                 found += 1
         assert found == 1, response.text
+ 
