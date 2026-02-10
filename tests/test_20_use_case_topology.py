@@ -248,7 +248,7 @@ class TestE2ETopologyUseCases:
         # test connectivity
         assert ', 0% packet loss,' in l2vpn_data['h'].cmd(l2vpn_data['ping_str'])
 
-    @pytest.mark.xfail(reason="The L2VPN is removed after changing nodes to down")
+    @pytest.mark.xfail(reason="L2VPN fails to transition back to up after inter-domain link recovery")
     def test_021_port_in_inter_domain_link_down_no_reprov(self):
         """ 
         Use case 2: OXPO sends a topology update with a Port Down and that port is part of an inter-domain link.
