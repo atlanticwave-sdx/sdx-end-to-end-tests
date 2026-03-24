@@ -56,10 +56,7 @@ class TestE2ETopologyUseCases:
             api = KYTOS_API % domain
             url = api + '/mef_eline/v2/evc/'
             evcs = requests.get(url).json()
-
-            for evc_id in evcs.keys():
-                resp = requests.delete(url + evc_id)
-                assert resp.status_code in (200, 204), resp.text
+            assert len(evcs) == 0, f"EVCs found in {domain} after SDX cleanup: {list(evcs.keys())}"
 
     @classmethod
     def setup_method(cls):
@@ -249,7 +246,7 @@ class TestE2ETopologyUseCases:
         l2vpn_status = l2vpn_data.get("status")
         assert l2vpn_status == "down", str(l2vpn_data)
 
-        assert ', 100% packet loss,' not in l2vpn_info['h'].cmd(l2vpn_info['ping_str']), "No verify loss of connectivity"
+        assert ', 0% packet loss,' not in l2vpn_info['h'].cmd(l2vpn_info['ping_str']), "No verify loss of connectivity"
  
         # Test reprovisioning behavior 
         # Restore one of the failed links and check if SDX-Controller finds an alternative path
