@@ -228,6 +228,8 @@ class TestE2ETopologyUseCases:
         - Simulates intra-domain failures in Ampath (Ampath1--Ampath3 and Ampath1--Ampath2 down)
         - Verifies permanent loss of connectivity (no reprovision possible in this scenario)
         - Restore one link and verify if SDX-Controller reprovisions (status - UP with new path)
+
+        More information: https://sdx-docs.readthedocs.io/en/latest/network-use-cases.html#use-case-1-intra-domain-link-up-down
         """
 
         # Create inter-domain L2VPN
