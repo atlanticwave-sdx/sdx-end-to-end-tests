@@ -52,7 +52,7 @@ class TestE2ETopologyUseCases:
         cls.net.stop()
     
     @classmethod
-    def get_remaining_kytos_l2vpns(cls):
+    def check_remaining_kytos_l2vpns(cls):
         leftovers = {}
         for domain in ['ampath', 'tenet', 'sax']:
             api = KYTOS_API % domain
@@ -60,9 +60,7 @@ class TestE2ETopologyUseCases:
             evcs = requests.get(url).json()
             leftovers[domain] = list(evcs.keys())
 
-        if any(leftovers.values()):
-            msg = f"Residual EVCs found in Kytos after deletion: {leftovers}"
-            warnings.warn(msg, category=RuntimeWarning, stacklevel=2)
+        assert not any(leftovers.values()),f"Residual EVCs found in Kytos after deletion: {leftovers}"
 
     @classmethod
     def setup_method(cls):
@@ -80,7 +78,7 @@ class TestE2ETopologyUseCases:
 
         cls.net.config_all_links_up()
         time.sleep(5)  # Allow time for topology to stabilize
-        cls.get_remaining_kytos_l2vpns()
+        cls.check_remaining_kytos_l2vpns()
 
     def create_new_l2vpn(self, vlan='100', node1='Ampath1', node2='Tenet01'):
         l2vpn_payload = {
