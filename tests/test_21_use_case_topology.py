@@ -331,12 +331,22 @@ class TestE2ETopologyUseCases:
         response = requests.delete(f"{api_url_ampath}/interfaces/{interfaces_id}/metadata/sdx_nni")
         assert response.status_code == 200, response.text
 
+        time.sleep(5)
+
         # Force to send the topology to the SDX-LC
         sdx_api = KYTOS_SDX_API % 'ampath'
         response = requests.post(f"{sdx_api}/topology/2.0.0")
         assert response.status_code == 200, response.text
 
         time.sleep(5)
+
+        response = requests.get(f"{sdx_api}/topology/2.0.0")
+        kytos_topo = response.json()
+        for node in kytos_topo["nodes"]:
+            for port in node["ports"]:
+                if port["id"] == "urn:sdx:port:ampath.net:Ampath1:40":
+                    assert port["nni"] == "", f"kytos_topo={kytos_topo}"
+                    break
 
         response = requests.get(API_URL_TOPO)
         assert response.status_code == 200, response.text
@@ -345,10 +355,10 @@ class TestE2ETopologyUseCases:
             if node['name'] == port_name.split('-')[0]:
                 for port in node['ports']:
                     if port['name'] == port_name:
-                        assert port['nni'] == ''
+                        assert port['nni'] == '', f"sdx_topo={updated_topology} kytos_topo={kytos_topo}"
         for link in updated_topology['links']:
             if link['name'] == link_name:
-                assert link['status'] == 'error'
+                assert link['status'] == 'error', f"link={link}"
                 break
 
         response = requests.get(API_URL)
