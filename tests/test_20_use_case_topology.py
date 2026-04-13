@@ -53,6 +53,9 @@ class TestE2ETopologyUseCases:
     @classmethod
     def setup_method(cls):
         """Reset network configuration before each test."""
+        # give enough time so that previous L2VPN gets created or topology update gets sent
+        time.sleep(3)
+
         api_url = SDX_CONTROLLER + '/l2vpn/1.0'
         response = requests.get(api_url)
         assert response.status_code == 200, response.text
