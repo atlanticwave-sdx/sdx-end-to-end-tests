@@ -367,5 +367,131 @@ class TestE2ETopologyUseCases:
         l2vpn_status = l2vpn_data.get("status")
         assert l2vpn_status == "up", l2vpn_data
 
+        # https://github.com/atlanticwave-sdx/sdx-controller/issues/526
+        # we first check if the L2VPN will remain the same, because only
+        # one side of the inter-domain link had the NNI removed. In order
+        # to have the L2VPN moved away from that link, both NNI attributes
+        # have to be removed, from Ampath1:40 and from Sax1:40
+        current_path = '-'.join(['_'.join(n['port_id'].split(':')[-2:]) for n in l2vpn_data['current_path']])
+        assert 'Ampath1_40-Sax01_40' in current_path, current_path
+
+    @pytest.mark.xfail(reason="The link is not removed after changing both sides")
+    def test_092_port_missing_nni_both_sides(self):
+        """
+        Use Case 9: OXPO sends a topology update with a NNI metadata removed on
+        both sides. It should trigger the L2VPN failure handling process
+        """
+        l2vpn_data = self.create_new_l2vpn(vlan='910', node1='Ampath1', node2= 'Sax01')
+        l2vpn_id = l2vpn_data['id']
+        port_name = 'Ampath1-eth40'
+        link_name = 'Ampath1-eth40--Sax01-eth40'
+        interfaces_id = 'aa:00:00:00:00:00:00:01:40'
+            
+        # Verify the link is up in the topology
+        response = requests.get(API_URL_TOPO)
+        assert response.status_code == 200, response.text
+        topology = response.json()
+        for link in topology['links']:
+            if link['name'] == link_name:
+                assert link['status'] == 'up'
+                break
+        
+        ampath_api = KYTOS_API % 'ampath'
+        api_url_ampath = f'{ampath_api}/topology/v3'
+        response = requests.delete(f"{api_url_ampath}/interfaces/{interfaces_id}/metadata/sdx_nni")
+        assert response.status_code == 200, response.text
+
+        time.sleep(5)
+
+        # Force to send the topology to the SDX-LC
+        sdx_api = KYTOS_SDX_API % 'ampath'
+        response = requests.post(f"{sdx_api}/topology/2.0.0")
+        assert response.status_code == 200, response.text
+
+        time.sleep(5)
+
+        response = requests.get(f"{sdx_api}/topology/2.0.0")
+        kytos_topo = response.json()
+        for node in kytos_topo["nodes"]:
+            for port in node["ports"]:
+                if port["id"] == "urn:sdx:port:ampath.net:Ampath1:40":
+                    assert port["nni"] == "", f"kytos_topo={kytos_topo}"
+                    break
+
+        response = requests.get(API_URL_TOPO)
+        assert response.status_code == 200, response.text
+        updated_topology = response.json()
+        for node in updated_topology['nodes']:
+            if node['name'] == port_name.split('-')[0]:
+                for port in node['ports']:
+                    if port['name'] == port_name:
+                        assert port['nni'] == '', f"sdx_topo={updated_topology} kytos_topo={kytos_topo}"
+        for link in updated_topology['links']:
+            if link['name'] == link_name:
+                assert link['status'] == 'error', f"link={link}"
+                break
+
+        response = requests.get(API_URL)
+        assert response.status_code == 200, response.text
+        l2vpn_data = response.json().get(l2vpn_id)
+        l2vpn_status = l2vpn_data.get("status")
+        assert l2vpn_status == "up", l2vpn_data
+
+        # https://github.com/atlanticwave-sdx/sdx-controller/issues/526
+        # we first check if the L2VPN will remain the same, because only
+        # one side of the inter-domain link had the NNI removed. In order
+        # to have the L2VPN moved away from that link, both NNI attributes
+        # have to be removed, from Ampath1:40 and from Sax1:40
+        current_path = '-'.join(['_'.join(n['port_id'].split(':')[-2:]) for n in l2vpn_data['current_path']])
+        assert 'Ampath1_40-Sax01_40' in current_path, current_path
+
+        # Now let's remove the Sax side and make sure the link will be
+        # removed!
+        sax_port_name = 'Sax01-eth40'
+        sax_intf_id = "dd:00:00:00:00:00:00:04:40"
+        sax_api = KYTOS_API % 'sax'
+        api_url_sax = f'{sax_api}/topology/v3'
+        response = requests.delete(f"{api_url_sax}/interfaces/{sax_intf_id}/metadata/sdx_nni")
+        assert response.status_code == 200, response.text
+
+        time.sleep(5)
+
+        # Force to send the topology to the SDX-LC
+        sdx_api = KYTOS_SDX_API % 'sax'
+        response = requests.post(f"{sdx_api}/topology/2.0.0")
+        assert response.status_code == 200, response.text
+
+        time.sleep(5)
+
+        response = requests.get(f"{sdx_api}/topology/2.0.0")
+        kytos_topo = response.json()
+        for node in kytos_topo["nodes"]:
+            for port in node["ports"]:
+                if port["id"] == "urn:sdx:port:sax.net:Sax01:40":
+                    assert port["nni"] == "", f"kytos_topo={kytos_topo}"
+                    break
+
+        response = requests.get(API_URL_TOPO)
+        assert response.status_code == 200, response.text
+        updated_topology = response.json()
+        for node in updated_topology['nodes']:
+            if node['name'] == port_name.split('-')[0]:
+                for port in node['ports']:
+                    if port['name'] == sax_port_name:
+                        assert port['nni'] == '', f"sdx_topo={updated_topology} kytos_topo={kytos_topo}"
+
+        found = False
+        for link in updated_topology['links']:
+            if link['name'] == link_name:
+                found = True
+                break
+        assert found is False, f"Link still there: {updated_topology}"
+
+        response = requests.get(API_URL)
+        assert response.status_code == 200, response.text
+        l2vpn_data = response.json().get(l2vpn_id)
+        l2vpn_status = l2vpn_data.get("status")
+        assert l2vpn_status == "up", l2vpn_data
+
         current_path = '-'.join(['_'.join(n['port_id'].split(':')[-2:]) for n in l2vpn_data['current_path']])
         assert 'Ampath1_40-Sax01_40' not in current_path, current_path
